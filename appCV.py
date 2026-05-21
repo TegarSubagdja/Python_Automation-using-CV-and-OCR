@@ -1,13 +1,14 @@
-from time import time, sleep
-from os import stat
-import pyautogui
+import sys
 import cv2
+import pyautogui
 import pyperclip
 import numpy as np
-import pandas as pd
+from os import stat
 from mss import MSS
+import pandas as pd
 from pynput import keyboard
-import sys
+from time import time, sleep
+from appOCR import scanTextInRoi
 
 state = "running"
 exit_flag = False
@@ -100,10 +101,10 @@ try:
             if target_type == 'VoicePosition':
                 handleVoice()
                 continue
-            
+
             found = findObject(targets[target_type])
             if not found:
-                print("Object not found")
+                print(f"Error, Object {target_type} tidak ditemukan")
                 state = "crash"
                 break
             
@@ -114,6 +115,11 @@ try:
             if target_type == 'AskPosition':
                 handleAsk(row['name'])
             elif target_type == 'CopyPosition':
+                codeExist = scanTextInRoi(row['code'])
+                if not codeExist:
+                    print(f"Error, Code {row['code']} tidak ditemukan")
+                    state = "crash"
+                    exit_flag = True
                 handleCopy(idx)
         
         if state == "crash":

@@ -1,3 +1,4 @@
+from re import RegexFlag
 import pyautogui
 import pytesseract
 import cv2
@@ -6,13 +7,7 @@ import json
 import os
 import time
 
-# OPTIONAL:
-# Kalau tesseract tidak masuk PATH
-# Uncomment dan isi lokasi exe
-
-# pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
-def load_roi_config():
+def loadRoiConfig():
 
     if not os.path.exists('config_ocr.json'):
         print("config_ocr.json tidak ditemukan!")
@@ -21,9 +16,9 @@ def load_roi_config():
     with open('config_ocr.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def scan_text_in_roi(teks_target):
+def scanTextInRoi(teks_target):
 
-    roi = load_roi_config()
+    roi = loadRoiConfig()
 
     if not roi:
         return
@@ -37,8 +32,6 @@ def scan_text_in_roi(teks_target):
     )
 
     start_time = time.time()
-
-    # Screenshot ROI
 
     screenshot = pyautogui.screenshot(
         region=(
@@ -54,11 +47,8 @@ def scan_text_in_roi(teks_target):
         cv2.COLOR_RGB2BGR
     )
 
-    # PREPROCESSING
-
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Resize agar text kecil lebih jelas
     gray = cv2.resize(
         gray,
         None,
@@ -67,15 +57,12 @@ def scan_text_in_roi(teks_target):
         interpolation=cv2.INTER_CUBIC
     )
 
-    # Threshold
     thresh = cv2.threshold(
         gray,
         0,
         255,
         cv2.THRESH_BINARY + cv2.THRESH_OTSU
     )[1]
-
-    # OCR
 
     data = pytesseract.image_to_data(
         thresh,
@@ -84,8 +71,6 @@ def scan_text_in_roi(teks_target):
     )
 
     ditemukan = False
-
-    # Loop hasil OCR
 
     for i in range(len(data['text'])):
 
@@ -98,7 +83,6 @@ def scan_text_in_roi(teks_target):
 
         print(f"Terdeteksi: {text} ({conf})")
 
-        # Match text
         if teks_target.lower() in text.lower():
 
             x = data['left'][i]
@@ -106,7 +90,6 @@ def scan_text_in_roi(teks_target):
             w = data['width'][i]
             h = data['height'][i]
 
-            # Karena resize 2x
             center_x = int((x + w / 2) / 2)
             center_y = int((y + h / 2) / 2)
 
@@ -120,14 +103,7 @@ def scan_text_in_roi(teks_target):
             print(f"Waktu: {end_time - start_time:.2f} detik")
             print(f"Koordinat: X={screen_x} Y={screen_y}")
 
-            pyautogui.moveTo(
-                screen_x,
-                screen_y,
-                duration=0.2
-            )
-
-            ditemukan = True
-            break
+            return True
 
     if not ditemukan:
 
@@ -136,6 +112,9 @@ def scan_text_in_roi(teks_target):
         print(f"\nTeks '{teks_target}' tidak ditemukan")
         print(f"Waktu proses: {end_time - start_time:.2f} detik")
 
+        return False
+
 if __name__ == "__main__":
 
-    scan_text_in_roi("paling")
+    scanTextInRoi("sample")
+    
