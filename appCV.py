@@ -35,23 +35,24 @@ def findCenter(point, target):
     return point[0] + w // 2, point[1] + h // 2
 
 def handleVoice():
+    print(f"Menunggu voice chat selesai")
     while True:
         found = findObject(targets['VoicePosition'])
         if found:
-            pyautogui.moveTo(found[0], found[1] - 50, duration=0.2)
+            print(f"Found voice chat at: {found[0]}, {found[1]}")
+            pyautogui.moveTo(found[0], found[1] - 30, duration=0.1)
             pyautogui.click()
             pyautogui.press('end')
-            sleep(1)
             break
         sleep(1)
 
 def handleAsk(name):
     pyautogui.click()
-    sleep(0.2)
+    sleep(0.1)
     pyautogui.write(name, interval=0.01)
-    sleep(0.2)
+    sleep(0.1)
     pyautogui.press('enter')
-    sleep(3)
+    sleep(1)
 
 def handleCopy(idx):
     pyautogui.click()
@@ -86,7 +87,7 @@ for idx, row in df.iterrows():
         elif target_type == 'CopyPosition':
             handleCopy(idx)
     
-    if idx >= 1 or state == "crash":
+    if state == "crash":
         print(f"Status: {state}")
         break
 

@@ -5,7 +5,10 @@ import pyautogui
 from PIL import Image, ImageTk
 
 class ScreenSnipper:
-    def __init__(self):
+    def __init__(self, filename):
+
+        self.filename = filename
+
         # 1. Ambil screenshot layar penuh terlebih dahulu sebagai latar belakang
         self.screenshot = pyautogui.screenshot()
         
@@ -71,10 +74,9 @@ class ScreenSnipper:
         cropped_image = self.screenshot.crop((x1, y1, x2, y2))
         
         # Simpan hasil crop menjadi file PNG
-        filename = "TargetObject/CopyPosition.png"
 
-        cropped_image.save(filename)
-        print(f"Berhasil! Gambar ikon disimpan dengan nama: '{filename}'")
+        cropped_image.save(self.filename)
+        print(f"Berhasil! Gambar ikon disimpan dengan nama: '{self.filename}'")
         print(f"Ukuran ikon: {x2-x1}x{y2-y1} pixel.")
 
     def start(self):
@@ -82,6 +84,7 @@ class ScreenSnipper:
 
 if __name__ == "__main__":
     print("Silakan drag area ikon di layarmu...")
-    time.sleep(5)
-    snipper = ScreenSnipper()
-    snipper.start()
+    for filename in ['AskPosition', 'VoicePosition', 'CopyPosition']:
+        time.sleep(2)
+        snipper = ScreenSnipper(f"TargetObject/{filename}.png")
+        snipper.start()
