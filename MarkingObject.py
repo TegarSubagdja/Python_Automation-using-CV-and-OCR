@@ -71,7 +71,7 @@ class ScreenSnipper:
         cropped_image = self.screenshot.crop((x1, y1, x2, y2))
         
         # Simpan hasil crop menjadi file PNG
-        filename = "TargetObject/buttonCopy.png"
+        filename = "TargetObject/test.png"
 
         cropped_image.save(filename)
         print(f"Berhasil! Gambar ikon disimpan dengan nama: '{filename}'")

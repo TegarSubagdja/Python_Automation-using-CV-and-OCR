@@ -1,3 +1,7 @@
+from sys import executable
+from time import time
+from os import stat
+import pyautogui
 import cv2
 import time
 import pyperclip
@@ -10,26 +14,44 @@ from mss import mss
 # LOAD
 # =========================
 
-df = pd.read_excel('Data/data.xlsx', sheet_name='Sheet1')
-df = df[['name', 'code']]
+state = "running"
 
-print(df.head())
-exit()
-
-AskPosition = cv2.imread(
-    'TargetObject/AskPosition.png',
-    cv2.IMREAD_GRAYSCALE
+df = pd.read_excel(
+    'Data/data.xlsx',
+    dtype={
+        'name': str,
+        'code': str,
+        'status': str,
+        'description': str
+    },
+    sheet_name='Sheet1'
 )
 
-VoicePosition = cv2.imread(
-    'TargetObject/VoicePosition.png',
-    cv2.IMREAD_GRAYSCALE
-)
+print(df.info())
 
-CopyPosition = cv2.imread(
-    'TargetObject/CopyPosition.png',
-    cv2.IMREAD_GRAYSCALE
-)
+AskPosition = {
+    'type': 'AskPosition',
+    'image': cv2.imread(
+        'TargetObject/AskPosition.png',
+        cv2.IMREAD_GRAYSCALE
+    )
+}
+
+VoicePosition = {
+    'type': 'VoicePosition',
+    'image': cv2.imread(
+        'TargetObject/VoicePosition.png',
+        cv2.IMREAD_GRAYSCALE
+    )
+}
+
+CopyPosition = {
+    'type': 'CopyPosition',
+    'image': cv2.imread(
+        'TargetObject/CopyPosition.png',
+        cv2.IMREAD_GRAYSCALE
+    )
+}
 
 # =========================
 # MSS INIT
@@ -60,9 +82,14 @@ def findObject(target, threshold=0.8):
 
     locations = np.where(res >= threshold)
 
-    points = list(zip(*locations[::-1]))
+    points = list(zip(*locations[::-1])) 
 
-    return points
+    print(f"Point yang ditemukan adalah : {points}")
+
+    if points:
+        return max(points, key=lambda point: point[1])
+
+    return None
 
 
 def findCenter(point, target):
@@ -80,16 +107,31 @@ def findCenter(point, target):
 
 skus = [AskPosition, VoicePosition, CopyPosition]
 
-iterasi = 0
+for iddf, row in df.iterrows():
 
-while True:
+    print(f"Processing row {iddf}")
 
-    for sku in skus:
-        found = findObject(sku)
+    for idsku, sku in enumerate(skus):
+
+        if sku['type'] == 'VoicePosition':
+            while True:
+                voiceFound = findObject(VoicePosition['image'])
+                if voiceFound:
+                    x,y = voiceFound
+                    pyautogui.moveTo(x, y-100, duration=0.2)
+                    pyautogui.click()
+                    pyautogui.press('end')
+                    time.sleep(1)
+                    break
+                else:
+                    time.sleep(1)
+            continue
+
+        found = findObject(sku['image'])
 
         if found:
 
-            x, y = findCenter(found[0], sku)
+            x, y = findCenter(found, sku['image'])
 
             print(f"Found at: {x}, {y}")
 
@@ -99,13 +141,28 @@ while True:
                 duration=0.2
             )
 
+            if sku['type'] == 'AskPosition':
+                pyautogui.click()
+                pyautogui.sleep(0.2)
+                pyautogui.write(row['name'], interval=0.01)
+                pyautogui.sleep(0.2)
+                pyautogui.press('enter')
+                time.sleep(3)
+            
+            if sku['type'] == 'CopyPosition':
+                pyautogui.click()
+                pyautogui.sleep(0.2)
+                df.loc[iddf, 'description'] = pyperclip.paste()
+                df.to_excel('Data/data.xlsx', index=False)
+
         else:
 
             print("Object not found")
+            state = "crash"
+            break
 
-    iterasi += 1
-
-    if iterasi >= 3:
+    if iddf >= 1 or state == "crash":
+        print(f"status : {state}")
         break
 
 exit()
