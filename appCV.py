@@ -1,168 +1,93 @@
-from sys import executable
-from time import time
+from time import time, sleep
 from os import stat
 import pyautogui
 import cv2
-import time
 import pyperclip
-import pyautogui
 import numpy as np
 import pandas as pd
 from mss import mss
 
-# =========================
-# LOAD
-# =========================
-
 state = "running"
-
 df = pd.read_excel(
     'Data/data.xlsx',
-    dtype={
-        'name': str,
-        'code': str,
-        'status': str,
-        'description': str
-    },
+    dtype={'name': str, 'code': str, 'status': str, 'description': str},
     sheet_name='Sheet1'
 )
 
-print(df.info())
-
-AskPosition = {
-    'type': 'AskPosition',
-    'image': cv2.imread(
-        'TargetObject/AskPosition.png',
-        cv2.IMREAD_GRAYSCALE
-    )
-}
-
-VoicePosition = {
-    'type': 'VoicePosition',
-    'image': cv2.imread(
-        'TargetObject/VoicePosition.png',
-        cv2.IMREAD_GRAYSCALE
-    )
-}
-
-CopyPosition = {
-    'type': 'CopyPosition',
-    'image': cv2.imread(
-        'TargetObject/CopyPosition.png',
-        cv2.IMREAD_GRAYSCALE
-    )
-}
-
-# =========================
-# MSS INIT
-# =========================
-
 sct = mss()
-
 monitor = sct.monitors[1]
 
-# =========================
-# FUNCTIONS
-# =========================
+targets = {
+    'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
+    'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
+    'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE)
+}
 
-def findObject(target, threshold=0.8):
-
-    screenshot = np.array(sct.grab(monitor))
-
-    screenshot_gray = cv2.cvtColor(
-        screenshot,
-        cv2.COLOR_BGRA2GRAY
-    )
-
-    res = cv2.matchTemplate(
-        screenshot_gray,
-        target,
-        cv2.TM_CCOEFF_NORMED
-    )
-
+def findObject(target, threshold=0.7):
+    screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
+    res = cv2.matchTemplate(screenshot_gray, target, cv2.TM_CCOEFF_NORMED)
     locations = np.where(res >= threshold)
-
-    points = list(zip(*locations[::-1])) 
-
-    print(f"Point yang ditemukan adalah : {points}")
-
-    if points:
-        return max(points, key=lambda point: point[1])
-
-    return None
-
+    points = list(zip(*locations[::-1]))
+    return max(points, key=lambda p: p[1]) if points else None
 
 def findCenter(point, target):
-
     h, w = target.shape
+    return point[0] + w // 2, point[1] + h // 2
 
-    x = point[0] + int(w / 2)
-    y = point[1] + int(h / 2)
-
-    return x, y
-
-# =========================
-# MAIN
-# =========================
-
-skus = [AskPosition, VoicePosition, CopyPosition]
-
-for iddf, row in df.iterrows():
-
-    print(f"Processing row {iddf}")
-
-    for idsku, sku in enumerate(skus):
-
-        if sku['type'] == 'VoicePosition':
-            while True:
-                voiceFound = findObject(VoicePosition['image'])
-                if voiceFound:
-                    x,y = voiceFound
-                    pyautogui.moveTo(x, y-100, duration=0.2)
-                    pyautogui.click()
-                    pyautogui.press('end')
-                    time.sleep(1)
-                    break
-                else:
-                    time.sleep(1)
-            continue
-
-        found = findObject(sku['image'])
-
+def handleVoice():
+    while True:
+        found = findObject(targets['VoicePosition'])
         if found:
+            pyautogui.moveTo(found[0], found[1] - 50, duration=0.2)
+            pyautogui.click()
+            pyautogui.press('end')
+            sleep(1)
+            break
+        sleep(1)
 
-            x, y = findCenter(found, sku['image'])
+def handleAsk(name):
+    pyautogui.click()
+    sleep(0.2)
+    pyautogui.write(name, interval=0.01)
+    sleep(0.2)
+    pyautogui.press('enter')
+    sleep(3)
 
-            print(f"Found at: {x}, {y}")
+def handleCopy(idx):
+    pyautogui.click()
+    sleep(0.2)
+    df.loc[idx, 'description'] = pyperclip.paste().replace('\r\n', '\n')
+    df.loc[idx, 'status'] = "Success"
+    df.to_excel('Data/data.xlsx', index=False)
 
-            pyautogui.moveTo(
-                x,
-                y,
-                duration=0.2
-            )
-
-            if sku['type'] == 'AskPosition':
-                pyautogui.click()
-                pyautogui.sleep(0.2)
-                pyautogui.write(row['name'], interval=0.01)
-                pyautogui.sleep(0.2)
-                pyautogui.press('enter')
-                time.sleep(3)
-            
-            if sku['type'] == 'CopyPosition':
-                pyautogui.click()
-                pyautogui.sleep(0.2)
-                df.loc[iddf, 'description'] = pyperclip.paste()
-                df.to_excel('Data/data.xlsx', index=False)
-
-        else:
-
+for idx, row in df.iterrows():
+    if row['status'] == "Success":
+        continue
+    
+    print(f"Processing row {idx}")
+    
+    for target_type in ['AskPosition', 'VoicePosition', 'CopyPosition']:
+        if target_type == 'VoicePosition':
+            handleVoice()
+            continue
+        
+        found = findObject(targets[target_type])
+        if not found:
             print("Object not found")
             state = "crash"
             break
-
-    if iddf >= 1 or state == "crash":
-        print(f"status : {state}")
+        
+        x, y = findCenter(found, targets[target_type])
+        print(f"Found at: {x}, {y}")
+        pyautogui.moveTo(x, y, duration=0.2)
+        
+        if target_type == 'AskPosition':
+            handleAsk(row['name'])
+        elif target_type == 'CopyPosition':
+            handleCopy(idx)
+    
+    if idx >= 1 or state == "crash":
+        print(f"Status: {state}")
         break
 
 exit()
