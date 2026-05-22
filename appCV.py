@@ -1,5 +1,7 @@
+import os
 import sys
 import cv2
+import gspread
 import pyautogui
 import pyperclip
 import numpy as np
@@ -8,38 +10,10 @@ from mss import MSS
 import pandas as pd
 from pynput import keyboard
 from time import time, sleep
+from dotenv import load_dotenv
 from appOCR import scanTextInRoi
 
-state = "running"
-exit_flag = False
-
-def on_press(key):
-    global exit_flag
-    try:
-        if key == keyboard.Key.esc:
-            print("\nESC pressed. Exiting...")
-            exit_flag = True
-            sys.exit(0)
-    except AttributeError:
-        pass
-
-listener = keyboard.Listener(on_press=on_press)
-listener.start()
-
-df = pd.read_excel(
-    'Data/data.xlsx',
-    dtype={'name': str, 'code': str, 'status': str, 'description': str},
-    sheet_name='Sheet1'
-)
-
-sct = MSS()
-monitor = sct.monitors[1]
-
-targets = {
-    'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
-    'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
-    'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE)
-}
+load_dotenv()
 
 def findObject(target, threshold=0.8):
     if exit_flag:
@@ -83,6 +57,64 @@ def handleCopy(idx):
     df.loc[idx, 'description'] = pyperclip.paste().replace('\r\n', '\n')
     df.loc[idx, 'status'] = "Success"
     df.to_excel('Data/data.xlsx', index=False)
+
+def getDataSpreadsheet():
+    try:
+        gc = gspread.service_account(filename='credentials-spread.json')
+        sh = gc.open_by_key(os.getenv("spread_sheet_key"))
+        worksheet = sh.sheet1
+        data = worksheet.get_all_records()
+        df = pd.DataFrame(data)
+        return df
+    except Exception as e:
+        print(f"Error getting data from spreadsheet: {e}")
+        return pd.DataFrame()
+
+def updateDataSpreadsheet(df):
+   try:
+        gc = gspread.service_account(filename='credentials-spread.json')
+        sh = gc.open_by_key(os.getenv("spread_sheet_key"))
+        worksheet = sh.sheet1
+        header = df.columns.tolist()
+        values = df.values.tolist()
+        data_to_upload = [header] + values
+        worksheet.update(range_name='A1', values=data_to_upload) 
+        return "success"
+   except Exception as e:
+        print(f"Error updating data to spreadsheet: {e}")
+        return "error"
+
+def on_press(key):
+    global exit_flag
+    try:
+        if key == keyboard.Key.esc:
+            print("\nESC pressed. Exiting...")
+            exit_flag = True
+            sys.exit(0)
+    except AttributeError:
+        pass
+
+
+state = "running"
+exit_flag = False
+
+df = pd.read_excel(
+    'Data/data.xlsx',
+    dtype={'name': str, 'code': str, 'status': str, 'description': str},
+    sheet_name='Sheet1'
+)
+
+sct = MSS()
+monitor = sct.monitors[1]
+
+targets = {
+    'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
+    'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
+    'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE)
+}
+
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
 
 try:
     for idx, row in df.iterrows():
