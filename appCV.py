@@ -5,7 +5,6 @@ import gspread
 import pyautogui
 import pyperclip
 import numpy as np
-from os import stat
 from mss import MSS
 import pandas as pd
 from pynput import keyboard
@@ -14,6 +13,9 @@ from dotenv import load_dotenv
 from appOCR import scanTextInRoi
 
 load_dotenv()
+
+state = "running"
+exit_flag = False
 
 def findObject(target, threshold=0.8):
     if exit_flag:
@@ -94,9 +96,6 @@ def on_press(key):
     except AttributeError:
         pass
 
-state = "running"
-exit_flag = False
-
 df = pd.read_excel(
     'Data/data.xlsx',
     dtype={'name': str, 'code': str, 'status': str, 'description': str},
@@ -115,8 +114,8 @@ targets = {
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
 
-try:
-    for idx, row in df.iterrows():
+for idx, row in df.iterrows():
+    try:
         if exit_flag:
             break
         
@@ -155,10 +154,15 @@ try:
         
         if state == "crash":
             print(f"Status: {state}")
-            break
+            continue
 
-except KeyboardInterrupt:
-    print("\nProgram interrupted")
-finally:
-    listener.stop()
-    sys.exit(0)
+    except KeyboardInterrupt:
+        pyautogui.press('esc')
+        sleep(1)
+        pyautogui.hotkey('ctrl','r')
+        print("\nProgram interrupted")
+        sleep(10)
+    finally:
+        print("\nProgram exited")
+        listener.stop()
+        sys.exit(0)
