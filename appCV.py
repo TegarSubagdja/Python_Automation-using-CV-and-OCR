@@ -60,7 +60,7 @@ def handleCopy(idx):
 
 def getDataSpreadsheet():
     try:
-        gc = gspread.service_account(filename='credentials-spread.json')
+        gc = gspread.service_account(filename='Credentials/credentials-spread.json')
         sh = gc.open_by_key(os.getenv("spread_sheet_key"))
         worksheet = sh.sheet1
         data = worksheet.get_all_records()
@@ -72,7 +72,7 @@ def getDataSpreadsheet():
 
 def updateDataSpreadsheet(df):
    try:
-        gc = gspread.service_account(filename='credentials-spread.json')
+        gc = gspread.service_account(filename='Credentials/credentials-spread.json')
         sh = gc.open_by_key(os.getenv("spread_sheet_key"))
         worksheet = sh.sheet1
         header = df.columns.tolist()
@@ -93,7 +93,6 @@ def on_press(key):
             sys.exit(0)
     except AttributeError:
         pass
-
 
 state = "running"
 exit_flag = False
