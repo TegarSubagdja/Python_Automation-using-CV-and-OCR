@@ -1,4 +1,6 @@
+import pyautogui
 import os
+import re
 import sys
 import cv2
 import gspread
@@ -31,6 +33,7 @@ def findCenter(point, target):
     return point[0] + w // 2, point[1] + h // 2
 
 def handleVoice():
+    waitingTime = 0
     while not exit_flag:
         found = findObject(targets['VoicePosition'])
         if found:
@@ -40,6 +43,12 @@ def handleVoice():
             sleep(1)
             break
         sleep(1)
+        waitingTime += 1
+        if waitingTime > 60:
+            print("Error, Voice button not found")
+            state = "crash"
+            return "crash"
+    return "success"
 
 def handleAsk(name):
     if exit_flag:
@@ -51,14 +60,25 @@ def handleAsk(name):
     pyautogui.press('enter')
     sleep(3)
 
-def handleCopy(idx):
+def handleCopy(idx, code):
     if exit_flag:
         sys.exit(0)
     pyautogui.click()
     sleep(0.2)
-    df.loc[idx, 'description'] = pyperclip.paste().replace('\r\n', '\n')
-    df.loc[idx, 'status'] = "Success"
-    df.to_excel('Data/data.xlsx', index=False)
+    textOrigin = pyperclip.paste().replace('\r\n', '\n')
+    textCopied = re.split(r"[ ,:/\n()]+|\[.*?\]", textOrigin)
+    textCopied = [x for x in textCopied if x]
+    if code in textCopied:
+        print("Code found in text")
+        df.loc[idx, 'description'] = textOrigin
+        df.loc[idx, 'status'] = "Success"
+        df.to_excel('Data/data.xlsx', index=False)
+        waitingErrorTime = 10
+    else:
+        print("Error, Code not found in text")
+        df.loc[idx, 'description'] = "Code Not Found in Text"
+        df.loc[idx, 'status'] = "Failed"
+        df.to_excel('Data/data.xlsx', index=False)
 
 def getDataSpreadsheet():
     try:
@@ -96,70 +116,76 @@ def on_press(key):
     except AttributeError:
         pass
 
-df = pd.read_excel(
-    'Data/data.xlsx',
-    dtype={'name': str, 'code': str, 'status': str, 'description': str},
-    sheet_name='Sheet1'
-)
+if __name__ == "__main__":
+    sct = MSS()
+    monitor = sct.monitors[1]
+    
+    df = pd.read_excel(
+        'Data/data.xlsx',
+        dtype={'name': str, 'code': str, 'status': str, 'description': str},
+        sheet_name='Sheet1'
+    )
 
-sct = MSS()
-monitor = sct.monitors[1]
+    targets = {
+        'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
+        'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
+        'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE)
+    }
+    
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
 
-targets = {
-    'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
-    'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
-    'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE)
-}
+    waitingErrorTime = 10
 
-listener = keyboard.Listener(on_press=on_press)
-listener.start()
-
-for idx, row in df.iterrows():
     try:
-        if exit_flag:
-            break
-        
-        if row['status'] == "Success":
-            continue
-        
-        print(f"Processing row {idx}")
-        
-        for target_type in ['AskPosition', 'VoicePosition', 'CopyPosition']:
+        for idx, row in df.iterrows():
             if exit_flag:
                 break
             
-            if target_type == 'VoicePosition':
-                handleVoice()
+            if row['status'] == "Success":
                 continue
+            
+            print(f"Processing row {idx}")
+            
+            for target_type in ['AskPosition', 'VoicePosition', 'CopyPosition']:
+                if exit_flag:
+                    break
+                
+                if target_type == 'VoicePosition':
+                    handleVoice()
+                    continue
 
-            found = findObject(targets[target_type])
-            if not found:
-                print(f"Error, Object {target_type} tidak ditemukan")
-                state = "crash"
-                break
-            
-            x, y = findCenter(found, targets[target_type])
-            print(f"Found at: {x}, {y}")
-            pyautogui.moveTo(x, y, duration=0.2)
-            
-            if target_type == 'AskPosition':
-                handleAsk(row['name'])
-            elif target_type == 'CopyPosition':
-                codeExist = scanTextInRoi(row['code'])
-                if not codeExist:
-                    print(f"Error, Code {row['code']} tidak ditemukan")
+                found = findObject(targets[target_type])
+                if not found:
+                    print(f"Error, Object {target_type} tidak ditemukan")
+                    sleep(waitingErrorTime)
+                    waitingErrorTime *= 2
                     state = "crash"
-                    exit_flag = True
-                handleCopy(idx)
-        
-        if state == "crash":
-            print(f"Status: {state}")
-            continue
+                    break
+                
+                x, y = findCenter(found, targets[target_type])
+                print(f"Found at: {x}, {y}")
+                pyautogui.moveTo(x, y, duration=0.2)
+                
+                if target_type == 'AskPosition':
+                    handleAsk(row['name'])
+                elif target_type == 'CopyPosition':
+                    state = handleCopy(idx, row['code'])
+            
+            if state == "crash":
+                pyautogui.hotkey('ctrl', 'shift', 'r')
+                sleep(waitingErrorTime)
+                print(f"Status: {state}")
+                continue
 
     except KeyboardInterrupt:
         pyautogui.press('esc')
         sleep(1)
         pyautogui.hotkey('ctrl','r')
+        sleep(waitingErrorTime)
+        pyautogui.hotkey('crtl', 'l')
+        pyautogui.write('https://chatgpt.com/c/6a06c307-1740-83ec-aa8b-591db45796e9', interval=0.01)
+        pyautogui.press('enter')
         print("\nProgram interrupted")
         sleep(10)
     finally:
