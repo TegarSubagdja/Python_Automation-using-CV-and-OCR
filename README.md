@@ -437,6 +437,48 @@ xcopy "C:\Users\kingt\AppData\Local\Google\Chrome\User Data\Profile 1" "C:\Chrom
 "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\ChromeAutomation\User Data" --profile-directory="Profile 1"
 ```
 
+# Virtual Environment & Offline Dependencies
+
+This project uses Python virtual environment (`venv`) to isolate dependencies and avoid conflicts with global Python packages.
+
+Create virtual environment:
+
+```bash
+python -m venv venv
+```
+
+Activate virtual environment (Windows):
+
+```bash
+.\venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Generate dependency list:
+
+```bash
+pip freeze > requirements.txt
+```
+
+Download offline dependency packages:
+
+```bash
+pip download -r requirements.txt -d packages
+```
+
+Install dependencies from offline packages:
+
+```bash
+pip install --no-index --find-links=packages -r requirements.txt
+```
+
+This allows the project to be rebuilt and installed even without internet connection.
+
 # License
 
 This project is intended for educational and automation purposes.

@@ -3,4 +3,10 @@ numpy==2.4.6
 PyAutoGUI==0.9.54
 pytesseract==0.3.13
 mss==10.2.0
-pillow
+pillow==11.1.0
+gspread==6.2.1
+pandas==3.0.1
+pynput==1.8.2
+python-dotenv==1.2.1
+openpyxl==3.1.5
+python-dotenv==1.2.1
