@@ -44,7 +44,7 @@ def handleVoice():
             break
         sleep(1)
         waitingTime += 1
-        if waitingTime > 60:
+        if waitingTime > 120:
             print("Error, Voice button not found")
             state = "crash"
             return "crash"
@@ -73,7 +73,7 @@ def handleCopy(idx, code):
         df.loc[idx, 'description'] = textOrigin
         df.loc[idx, 'status'] = "Success"
         df.to_excel('Data/data.xlsx', index=False)
-        waitingErrorTime = 10
+        waitingErrorTime = 1
     else:
         print("Error, Code not found in text")
         df.loc[idx, 'description'] = "Code Not Found in Text"
@@ -126,16 +126,18 @@ if __name__ == "__main__":
         sheet_name='Sheet1'
     )
 
+    chatGptUrl = os.getenv("chat_gpt_url")
+
     targets = {
         'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
         'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
         'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE)
     }
     
-    listener = keyboard.Listener(on_press=on_press)
+    listener = keyboard.Listlener(on_press=on_press)
     listener.start()
 
-    waitingErrorTime = 10
+    waitingErrorTime = 1
 
     try:
         for idx, row in df.iterrows():
@@ -152,7 +154,7 @@ if __name__ == "__main__":
                     break
                 
                 if target_type == 'VoicePosition':
-                    handleVoice()
+                    status = handleVoice()
                     continue
 
                 found = findObject(targets[target_type])
@@ -175,19 +177,16 @@ if __name__ == "__main__":
             if state == "crash":
                 pyautogui.hotkey('ctrl', 'shift', 'r')
                 sleep(waitingErrorTime)
+                pyautogui.hotkey('crtl', 'l')
+                pyautogui.write(chatGptUrl, interval=0.01)
+                pyautogui.press('enter')
                 print(f"Status: {state}")
                 continue
 
     except KeyboardInterrupt:
         pyautogui.press('esc')
-        sleep(1)
-        pyautogui.hotkey('ctrl','r')
-        sleep(waitingErrorTime)
-        pyautogui.hotkey('crtl', 'l')
-        pyautogui.write('https://chatgpt.com/c/6a06c307-1740-83ec-aa8b-591db45796e9', interval=0.01)
-        pyautogui.press('enter')
         print("\nProgram interrupted")
-        sleep(10)
+        sleep(1)
     finally:
         print("\nProgram exited")
         listener.stop()
