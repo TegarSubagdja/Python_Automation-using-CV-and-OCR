@@ -112,4 +112,4 @@ def scanTextInRoi(teks_target):
         return False
 
 if __name__ == "__main__":
-    scanTextInRoi("upgrade")
+    scanTextInRoi("flash")
