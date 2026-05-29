@@ -84,7 +84,7 @@ class ScreenSnipper:
 
 if __name__ == "__main__":
     print("Silakan drag area ikon di layarmu...")
-    for filename in ['AskPosition', 'VoicePosition', 'CopyPosition']:
+    for filename in ['AskPosition', 'VoicePosition', 'CopyPosition', 'CompanyKnowledgePosition']:
         time.sleep(2)
         snipper = ScreenSnipper(f"TargetObject/{filename}.png")
         snipper.start()

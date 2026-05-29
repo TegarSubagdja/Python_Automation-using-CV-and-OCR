@@ -96,6 +96,8 @@ def scanTextInRoi(teks_target):
             screen_x = roi['x'] + center_x
             screen_y = roi['y'] + center_y
 
+            pyautogui.moveTo(screen_x, screen_y, duration=0.2)
+
             end_time = time.time()
 
             print(f"\n[SUKSES] '{text}' ditemukan")

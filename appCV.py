@@ -149,7 +149,7 @@ if __name__ == "__main__":
             
             print(f"Processing row {idx}")
             
-            for target_type in ['AskPosition', 'VoicePosition', 'CopyPosition']:
+            for target_type in ['AskPosition', 'VoicePosition', 'CopyPosition', 'KnowledgePosition']:
                 if exit_flag:
                     break
                 
