@@ -1,4 +1,4 @@
-from re import RegexFlag
+import re
 import pyautogui
 import pytesseract
 import cv2
@@ -8,18 +8,14 @@ import os
 import time
 
 def loadRoiConfig():
-
     if not os.path.exists('config_ocr.json'):
         print("config_ocr.json tidak ditemukan!")
         return None
-
     with open('config_ocr.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
 def scanTextInRoi(teks_target):
-
     roi = loadRoiConfig()
-
     if not roi:
         return
 
@@ -67,24 +63,26 @@ def scanTextInRoi(teks_target):
     data = pytesseract.image_to_data(
         thresh,
         output_type=pytesseract.Output.DICT,
-        config='--oem 3 --psm 6'
+        config='--oem 3 --psm 11'
     )
 
     ditemukan = False
 
-    for i in range(len(data['text'])):
+    print(f"Data mental adalah : {data}")
 
+    for i in range(len(data['text'])):
         text = data['text'][i].strip()
 
         if text == "":
             continue
 
         conf = int(float(data['conf'][i]))
-
         print(f"Terdeteksi: {text} ({conf})")
 
-        if teks_target.lower() in text.lower():
-
+        clean_text = re.sub(r'[^a-zA-Z0-9]', '', text)
+        clean_target = re.sub(r'[^a-zA-Z0-9]', '', teks_target)
+        if clean_target.lower() in clean_text.lower() and clean_target != "":
+            
             x = data['left'][i]
             y = data['top'][i]
             w = data['width'][i]
@@ -97,26 +95,21 @@ def scanTextInRoi(teks_target):
             screen_y = roi['y'] + center_y
 
             pyautogui.moveTo(screen_x, screen_y, duration=0.2)
-
             end_time = time.time()
 
-            print(f"\n[SUKSES] '{text}' ditemukan")
+            print(f"\n[SUKSES] '{text}' (Cleaned: '{clean_text}') ditemukan")
             print(f"Confidence: {conf}")
             print(f"Waktu: {end_time - start_time:.2f} detik")
             print(f"Koordinat: X={screen_x} Y={screen_y}")
-
+            
+            ditemukan = True
             return True
 
     if not ditemukan:
-
         end_time = time.time()
-
         print(f"\nTeks '{teks_target}' tidak ditemukan")
         print(f"Waktu proses: {end_time - start_time:.2f} detik")
-
         return False
 
 if __name__ == "__main__":
-
-    scanTextInRoi("sample")
-    
+    scanTextInRoi("upgrade")
