@@ -1,8 +1,7 @@
-import os
 import time
 import tkinter as tk
 import pyautogui
-from PIL import Image, ImageTk
+from pynput import keyboard
 
 class ScreenSnipper:
     def __init__(self, filename):
