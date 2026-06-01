@@ -142,23 +142,23 @@ def scanTextInRoi(teks_target):
 
     # CARI KALIMAT
 
-    ditemukan = False
+    found = False
 
     for i in range(
         len(words) - len(target_words) + 1
     ):
 
-        cocok = True
+        match = True
 
         for j in range(len(target_words)):
 
             if words[i + j]['text'] != target_words[j]:
-                cocok = False
+                match = False
                 break
 
-        if cocok:
+        if match:
 
-            ditemukan = True
+            found = True
 
             # AMBIL AREA GABUNGAN
 
@@ -223,7 +223,7 @@ def scanTextInRoi(teks_target):
 
     # TIDAK DITEMUKAN
 
-    if not ditemukan:
+    if not found:
 
         end_time = time.time()
 

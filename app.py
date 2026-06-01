@@ -13,6 +13,7 @@ import pandas as pd
 from pynput import keyboard
 from time import time, sleep
 from dotenv import load_dotenv
+from appOCR import scanTextInRoi
 
 load_dotenv()
 
@@ -94,8 +95,12 @@ def checkCondition(targets):
             itemCenter = findCenter(itemFound, img)
             pyautogui.moveTo(itemCenter[0],itemCenter[1],duration=0.2)
         else:
-            print(f"there is item not found...")
+            print(f"there is condition item not found...")
             return False
+    
+    if not scanTextInRoi("KnowlageCompany"):
+        print("there is knowlage comany not found...")
+        return False
 
     return True
 
@@ -131,9 +136,6 @@ if __name__ == "__main__":
         'KnowledgePosition': cv2.imread('TargetObject/CompanyKnowledgePosition.png', cv2.IMREAD_GRAYSCALE)
     }
 
-    for name, img in targets.items():
-        print(name, type(img))
-    
     # Initialize keyboard listener
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
