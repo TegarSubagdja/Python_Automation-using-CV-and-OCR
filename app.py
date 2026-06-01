@@ -1,3 +1,4 @@
+import sys
 import pyautogui
 import os
 import re
@@ -12,7 +13,6 @@ import pandas as pd
 from pynput import keyboard
 from time import time, sleep
 from dotenv import load_dotenv
-from appOCR import scanTextInRoi
 
 load_dotenv()
 
@@ -88,10 +88,16 @@ def checkCondition(targets):
     if exit_flag:
         sys.exit(0)
     
-    for target in targets:
-        if findObject(target):
-            return target
-    return None
+    for name, img in targets.items():
+        itemFound = findObject(img)
+        if itemFound:
+            itemCenter = findCenter(itemFound, img)
+            pyautogui.moveTo(itemCenter[0],itemCenter[1],duration=0.2)
+        else:
+            print(f"there is item not found...")
+            return False
+
+    return True
 
 
 def on_press(key):
@@ -112,7 +118,7 @@ if __name__ == "__main__":
 
     # Initialize data
     df = pd.read_excel(
-        'Data/data.xlsx',
+        'Data/data2.xlsx',
         dtype={'name': str, 'code': str, 'status': str, 'description': str},
         sheet_name='Sheet1'
     )
@@ -122,8 +128,11 @@ if __name__ == "__main__":
         'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
         'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
         'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE),
-        'KnowledgePosition': cv2.imread('TargetObject/KnowledgePosition.png', cv2.IMREAD_GRAYSCALE)
+        'KnowledgePosition': cv2.imread('TargetObject/CompanyKnowledgePosition.png', cv2.IMREAD_GRAYSCALE)
     }
+
+    for name, img in targets.items():
+        print(name, type(img))
     
     # Initialize keyboard listener
     listener = keyboard.Listener(on_press=on_press)
@@ -139,11 +148,15 @@ if __name__ == "__main__":
                 continue
 
             # Check condition to prompt
-            condition = checkCondition(targets=[targets['AskPosition'], targets['VoicePosition']])
-
+            condition = checkCondition(targets=targets)
+            
             if condition:
-                break
-    except:
-        print("Error program keluar")
+                print("condition success")
+                sys.exit(0)
+            else:
+                print(f"condition failed")
+                sys.exit(0)
+    except Exception as e:
+        print(f"Error program keluar: {e}")
             
 

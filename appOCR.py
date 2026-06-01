@@ -7,17 +7,23 @@ import json
 import os
 import time
 
+
 def loadRoiConfig():
+
     if not os.path.exists('config_ocr.json'):
         print("config_ocr.json tidak ditemukan!")
         return None
+
     with open('config_ocr.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
+
 def scanTextInRoi(teks_target):
+
     roi = loadRoiConfig()
+
     if not roi:
-        return
+        return False
 
     print(
         f"Mengambil screenshot ROI: "
@@ -28,6 +34,8 @@ def scanTextInRoi(teks_target):
     )
 
     start_time = time.time()
+
+    # SCREENSHOT
 
     screenshot = pyautogui.screenshot(
         region=(
@@ -43,16 +51,25 @@ def scanTextInRoi(teks_target):
         cv2.COLOR_RGB2BGR
     )
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # PREPROCESS IMAGE
+
+    gray = cv2.cvtColor(
+        img,
+        cv2.COLOR_BGR2GRAY
+    )
+
+    # resize agar OCR lebih akurat
+    scale = 2
 
     gray = cv2.resize(
         gray,
         None,
-        fx=2,
-        fy=2,
+        fx=scale,
+        fy=scale,
         interpolation=cv2.INTER_CUBIC
     )
 
+    # threshold
     thresh = cv2.threshold(
         gray,
         0,
@@ -60,56 +77,171 @@ def scanTextInRoi(teks_target):
         cv2.THRESH_BINARY + cv2.THRESH_OTSU
     )[1]
 
+    # OCR
+
     data = pytesseract.image_to_data(
         thresh,
         output_type=pytesseract.Output.DICT,
         config='--oem 3 --psm 11'
     )
 
-    ditemukan = False
+    # SIMPAN SEMUA KATA
 
-    print(f"Data mental adalah : {data}")
+    words = []
 
     for i in range(len(data['text'])):
+
         text = data['text'][i].strip()
 
         if text == "":
             continue
 
-        conf = int(float(data['conf'][i]))
+        try:
+            conf = float(data['conf'][i])
+        except:
+            conf = -1
+
         print(f"Terdeteksi: {text} ({conf})")
 
-        clean_text = re.sub(r'[^a-zA-Z0-9]', '', text)
-        clean_target = re.sub(r'[^a-zA-Z0-9]', '', teks_target)
-        if clean_target.lower() in clean_text.lower() and clean_target != "":
-            
-            x = data['left'][i]
-            y = data['top'][i]
-            w = data['width'][i]
-            h = data['height'][i]
+        # skip confidence jelek
+        if conf < 50:
+            continue
 
-            center_x = int((x + w / 2) / 2)
-            center_y = int((y + h / 2) / 2)
+        clean_text = re.sub(
+            r'[^a-zA-Z0-9]',
+            '',
+            text
+        ).lower()
 
+        if clean_text == "":
+            continue
+
+        words.append({
+            'text': clean_text,
+            'x': data['left'][i],
+            'y': data['top'][i],
+            'w': data['width'][i],
+            'h': data['height'][i]
+        })
+
+    # TARGET
+
+    target_words = [
+        re.sub(r'[^a-zA-Z0-9]', '', w).lower()
+        for w in teks_target.split()
+    ]
+
+    # DEBUG
+
+    print("\n===== HASIL OCR =====")
+
+    for w in words:
+        print(w['text'])
+
+    print("=====================\n")
+
+    # CARI KALIMAT
+
+    ditemukan = False
+
+    for i in range(
+        len(words) - len(target_words) + 1
+    ):
+
+        cocok = True
+
+        for j in range(len(target_words)):
+
+            if words[i + j]['text'] != target_words[j]:
+                cocok = False
+                break
+
+        if cocok:
+
+            ditemukan = True
+
+            # AMBIL AREA GABUNGAN
+
+            first = words[i]
+            last = words[
+                i + len(target_words) - 1
+            ]
+
+            x1 = first['x']
+            y1 = first['y']
+
+            x2 = last['x'] + last['w']
+
+            y2 = max(
+                word['y'] + word['h']
+                for word in words[
+                    i:i + len(target_words)
+                ]
+            )
+
+            # CENTER POSITION
+
+            center_x = int(
+                ((x1 + x2) / 2) / scale
+            )
+
+            center_y = int(
+                ((y1 + y2) / 2) / scale
+            )
+
+            # convert ke layar asli
             screen_x = roi['x'] + center_x
             screen_y = roi['y'] + center_y
 
-            pyautogui.moveTo(screen_x, screen_y, duration=0.2)
+            # MOVE MOUSE
+
+            pyautogui.moveTo(
+                screen_x,
+                screen_y,
+                duration=0.2
+            )
+
             end_time = time.time()
 
-            print(f"\n[SUKSES] '{text}' (Cleaned: '{clean_text}') ditemukan")
-            print(f"Confidence: {conf}")
-            print(f"Waktu: {end_time - start_time:.2f} detik")
-            print(f"Koordinat: X={screen_x} Y={screen_y}")
-            
-            ditemukan = True
+            print(
+                f"\n[SUKSES] "
+                f"'{teks_target}' ditemukan"
+            )
+
+            print(
+                f"Koordinat: "
+                f"X={screen_x} "
+                f"Y={screen_y}"
+            )
+
+            print(
+                f"Waktu proses: "
+                f"{end_time - start_time:.2f} detik"
+            )
+
             return True
 
+    # TIDAK DITEMUKAN
+
     if not ditemukan:
+
         end_time = time.time()
-        print(f"\nTeks '{teks_target}' tidak ditemukan")
-        print(f"Waktu proses: {end_time - start_time:.2f} detik")
+
+        print(
+            f"\nTeks '{teks_target}' "
+            f"tidak ditemukan"
+        )
+
+        print(
+            f"Waktu proses: "
+            f"{end_time - start_time:.2f} detik"
+        )
+
         return False
 
+
+# MAIN
+
 if __name__ == "__main__":
-    scanTextInRoi("flash")
+
+    scanTextInRoi("lana del rey") 
