@@ -101,8 +101,6 @@ def scanTextInRoi(teks_target):
         except:
             conf = -1
 
-        print(f"Terdeteksi: {text} ({conf})")
-
         # skip confidence jelek
         if conf < 50:
             continue
@@ -130,15 +128,6 @@ def scanTextInRoi(teks_target):
         re.sub(r'[^a-zA-Z0-9]', '', w).lower()
         for w in teks_target.split()
     ]
-
-    # DEBUG
-
-    print("\n===== HASIL OCR =====")
-
-    for w in words:
-        print(w['text'])
-
-    print("=====================\n")
 
     # CARI KALIMAT
 
@@ -219,7 +208,7 @@ def scanTextInRoi(teks_target):
                 f"{end_time - start_time:.2f} detik"
             )
 
-            return True
+            return [screen_x, screen_y]
 
     # TIDAK DITEMUKAN
 
@@ -244,4 +233,4 @@ def scanTextInRoi(teks_target):
 
 if __name__ == "__main__":
 
-    scanTextInRoi("lana del rey") 
+    scanTextInRoi("Ready when") 

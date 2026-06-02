@@ -18,14 +18,18 @@ from appOCR import scanTextInRoi
 load_dotenv()
 
 # Initialize variables
-state = "running"
-exit_flag = False
-waitingErrorTime = 3
+state = os.getenv('state')
+exit_flag = os.getenv("exit_flag", "False").lower() == "true"
+waitingErrorTime = int(os.getenv('waitingErrorTime'))
+timeout = int(os.getenv('timeout'))
 
-def findObject(target, threshold=0.8):
+def findObject(target, threshold=0.8, screenshot_gray=None):
     if exit_flag:
         sys.exit(0)
-    screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
+        
+    if screenshot_gray is None:
+        screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
+    
     res = cv2.matchTemplate(screenshot_gray, target, cv2.TM_CCOEFF_NORMED)
     locations = np.where(res >= threshold)
     points = list(zip(*locations[::-1]))
@@ -34,26 +38,6 @@ def findObject(target, threshold=0.8):
 def findCenter(point, target):
     h, w = target.shape
     return point[0] + w // 2, point[1] + h // 2
-
-def handleVoice():
-    if exit_flag:
-        sys.exit(0)
-    waitingTime = 0
-    while not exit_flag:
-        found = findObject(targets['VoicePosition'])
-        if found:
-            pyautogui.moveTo(found[0], found[1] - 50, duration=0.2)
-            pyautogui.click()
-            pyautogui.press('end')
-            sleep(1)
-            break
-        sleep(1)
-        waitingTime += 1
-        if waitingTime > 120:
-            print("Error, Voice button not found")
-            state = "crash"
-            return "crash"
-    return "success"
 
 def handleAsk(name):
     if exit_flag:
@@ -65,11 +49,31 @@ def handleAsk(name):
     pyautogui.press('enter')
     sleep(3)
 
+def handleVoice():
+    if exit_flag:
+        sys.exit(0)
+    waitingTime = 0
+    while not exit_flag:
+        found = findObject(targets['VoicePosition'])
+        if found:
+            pyautogui.moveTo(found[0], found[1] - 30, duration=0.1)
+            pyautogui.click()
+            pyautogui.press('end')
+            sleep(1)
+            break
+        waitingTime += 1
+        if waitingTime > 120:
+            print("Error, Voice button not found")
+            state = "crash"
+            return "crash"
+        sleep(1)
+        
+    return "success"
+
 def handleCopy(idx, code):
     if exit_flag:
         sys.exit(0)
     pyautogui.click()
-    sleep(0.2)
     textOrigin = pyperclip.paste().replace('\r\n', '\n')
     textCopied = re.split(r"[ ,:/\n()]+|\[.*?\]", textOrigin)
     textCopied = [x for x in textCopied if x]
@@ -85,31 +89,59 @@ def handleCopy(idx, code):
         df.loc[idx, 'status'] = "Failed"
         df.to_excel('Data/data.xlsx', index=False)
 
-def checkCondition(targets):
+def checkCondition(targets, text_limit, text_knowledge, iteration=1):
     if exit_flag:
         sys.exit(0)
+
+    screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
+
+    pyautogui.moveTo(1440, 585, duration=0.1)
+    pyautogui.click()
+
+    error = False
     
     for name, img in targets.items():
-        itemFound = findObject(img)
+        itemFound = findObject(img, screenshot_gray=screenshot_gray)
         if itemFound:
-            itemCenter = findCenter(itemFound, img)
-            pyautogui.moveTo(itemCenter[0],itemCenter[1],duration=0.2)
+            x, y = findCenter(itemFound, img)
+            pyautogui.moveTo(x, y, duration=0.9)
         else:
-            print(f"there is condition item not found...")
-            return False
+            print(f"Error, position {name} not found...")
+            error = True
+            if name == "AskPosition":
+                pyautogui.hotkey("shift", "esc")
+                pyautogui.hotkey("ctrl", "a")
+                pyautogui.press("delete")
+            if name == "VoicePosition":
+                pyautogui.hotkey('ctrl', 'shift', 'r')
+            if name == "CopyPosition":
+                if not scanTextInRoi(text_limit):
+                    pyautogui.hotkey('ctrl', 'shift', 'r')
+                else:
+                    pyautogui.hotkey('ctrl', 'shift', 'o')
     
-    if not scanTextInRoi("KnowlageCompany"):
-        print("there is knowlage comany not found...")
-        return False
+    company_knowledge = scanTextInRoi(text_knowledge)
+    if not company_knowledge:
+        pyautogui.press('/')
+        sleep(0.1)
+        pyautogui.write('company', interval=0.1)
+        sleep(0.2)
+        pyautogui.press('enter')
+        sleep(0.2)
+
+    if error:
+        if iteration > 10:
+            return False
+        else:
+            return checkCondition(targets, text_limit, text_knowledge, iteration + 1)
 
     return True
-
 
 def on_press(key):
     global exit_flag
     try:
-        if key == keyboard.Key.esc:
-            print("\nESC pressed. Exiting...")
+        if key.char == 'q':
+            print("\nQ pressed. Exiting...")
             exit_flag = True
             sys.exit(0)
     except AttributeError:
@@ -133,7 +165,6 @@ if __name__ == "__main__":
         'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
         'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
         'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE),
-        'KnowledgePosition': cv2.imread('TargetObject/CompanyKnowledgePosition.png', cv2.IMREAD_GRAYSCALE)
     }
 
     # Initialize keyboard listener
@@ -141,24 +172,39 @@ if __name__ == "__main__":
     listener.start()
 
     # Main loop
-    try:
-        for idx, row in df.iterrows():
-            if exit_flag:
-                break
+    for idx, row in df.iterrows():
+        if exit_flag:
+            break
 
-            if row['status'] == "Success":
-                continue
+        if row['status'] == "Success":
+            continue
 
-            # Check condition to prompt
-            condition = checkCondition(targets=targets)
-            
-            if condition:
-                print("condition success")
-                sys.exit(0)
-            else:
-                print(f"condition failed")
-                sys.exit(0)
-    except Exception as e:
-        print(f"Error program keluar: {e}")
-            
+        # Check condition to prompt
+        condition = checkCondition(targets=targets, text_limit="limit", text_knowledge="knowledge")
 
+        if not condition:
+            exit()
+        
+        # for step in ['AskPosition','VoicePosition','CopyPosition']:
+        #     if exit_flag:
+        #         sys.exit(0)
+
+        #     if step != 'VoicePosition': 
+        #         try:
+        #             screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
+        #             itemFound = findObject(targets[step], screenshot_gray=screenshot_gray)
+        #             x, y = findCenter(itemFound, targets[step])
+        #             pyautogui.moveTo(x, y, duration=0.1)
+        #         except:
+        #             print("Error")
+        #             state = "crash"
+        #             break
+
+        #     if step == 'AskPosition':
+        #         handleAsk(row['name'])
+        #     elif step == 'VoicePosition':
+        #         handleVoice()
+        #     elif step == 'CopyPosition':
+        #         handleCopy(idx, row['code'])
+
+        exit()
