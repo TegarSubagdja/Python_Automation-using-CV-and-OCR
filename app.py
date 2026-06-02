@@ -91,7 +91,7 @@ def handleCopy(idx, code):
         df.loc[idx, 'status'] = "Failed"
         df.to_excel('Data/data.xlsx', index=False)
 
-def checkCondition(targets, text_limit, text_knowledge, iteration=1, checkCompany=False):
+def checkCondition(targets, text_limit, text_knowledge):
     if exit_flag:
         sys.exit(0)
 
@@ -100,53 +100,19 @@ def checkCondition(targets, text_limit, text_knowledge, iteration=1, checkCompan
     pyautogui.moveTo(1440, 585, duration=0.1)
     pyautogui.click()
 
-    error = False
-    
+    dictCondition = {}
+
     for name, img in targets.items():
         itemFound = findObject(img, screenshot_gray=screenshot_gray)
         if itemFound:
-            x, y = findCenter(itemFound, img)
+            dictCondition[name] = True
         else:
-            print(f"Error, position {name} not found...")
-            error = True
-            if name == "AskPosition":
-                print("fix ask position")
-                pyautogui.hotkey("shift", "esc")
-                pyautogui.hotkey("ctrl", "a")
-                pyautogui.press("delete")
-            if name == "CopyPosition":
-                print("fix copy position")
-                if not scanTextInRoi(text_limit):
-                    pyautogui.hotkey('ctrl', 'shift', 'r')
-                    sleep(waitingErrorTime)
-                else:
-                    pyautogui.hotkey('ctrl', 'shift', 'o')
-                    sleep(2)
-                    pyperclip.copy(var.fist_prompt)
-                    sleep(0.1)
-                    pyautogui.hotkey('ctrl', 'v')
-                    sleep(0.1)
-                    pyautogui.press('enter')
-                    sleep(45)
+            dictCondition[name] = False
 
-    if checkCompany:
-        company_knowledge = scanTextInRoi(text_knowledge)
-        if not company_knowledge:
-            print("fix company knowledge")
-            pyautogui.press('/')
-            sleep(0.1)
-            pyautogui.write('company', interval=0.1)
-            sleep(0.2)
-            pyautogui.press('enter')
-            sleep(0.2)
+    
 
-    if error:
-        if iteration >= 5:
-            exit()
-        else:
-            return checkCondition(targets, text_limit, text_knowledge, iteration + 1)
-
-    return True
+    print(dictCondition)
+    exit()
 
 def on_press(key):
     global exit_flag
@@ -176,6 +142,7 @@ if __name__ == "__main__":
         'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
         'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
         'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE),
+        'CompanyKnowledgePosition': cv2.imread('TargetObject/CompanyKnowledgePosition.png', cv2.IMREAD_GRAYSCALE),
     }
 
     # Initialize keyboard listener
@@ -190,6 +157,8 @@ if __name__ == "__main__":
         if row['status'] == "Success":
             continue
 
+        checkCondition(targets, 'limit', 'company knowledge')
+
         for step in ['AskPosition','VoicePosition','CopyPosition']:
             if exit_flag:
                 sys.exit(0)
@@ -203,15 +172,3 @@ if __name__ == "__main__":
                 except:
                     print("Error")
                     state = "crash"
-
-            if state != "crash":
-                if step == 'AskPosition':
-                    handleAsk(row['name'])
-                elif step == 'VoicePosition':
-                    handleVoice()
-                elif step == 'CopyPosition':
-                    handleCopy(idx, row['code'])
-            else:
-                condition = checkCondition(targets=targets, text_limit="limit", text_knowledge="company knowledge", checkCompany=False)
-                if not condition:
-                    exit()

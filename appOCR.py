@@ -7,7 +7,6 @@ import json
 import os
 import time
 
-
 def loadRoiConfig():
 
     if not os.path.exists('config_ocr.json'):
