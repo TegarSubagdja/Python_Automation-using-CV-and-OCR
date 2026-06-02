@@ -192,7 +192,7 @@ def scanTextInRoi(teks_target):
             end_time = time.time()
 
             print(
-                f"\n[SUKSES] "
+                f"[SUKSES] "
                 f"'{teks_target}' ditemukan"
             )
 
@@ -216,7 +216,7 @@ def scanTextInRoi(teks_target):
         end_time = time.time()
 
         print(
-            f"\nTeks '{teks_target}' "
+            f"Teks '{teks_target}' "
             f"tidak ditemukan"
         )
 
@@ -226,7 +226,6 @@ def scanTextInRoi(teks_target):
         )
 
         return False
-
 
 # MAIN
 

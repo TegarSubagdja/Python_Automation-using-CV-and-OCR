@@ -1,4 +1,4 @@
-from numpy import var
+from pandas.tseries.holiday import before_nearest_workday
 import pyperclip
 import sys
 import pyautogui
@@ -66,11 +66,10 @@ def handleVoice():
         waitingTime += 1
         if waitingTime > 120:
             print("Error, Voice button not found")
-            state = "crash"
-            return "crash"
+            return False
         sleep(1)
         
-    return "success"
+    return True
 
 def handleCopy(idx, code):
     if exit_flag:
@@ -91,9 +90,11 @@ def handleCopy(idx, code):
         df.loc[idx, 'status'] = "Failed"
         df.to_excel('Data/data.xlsx', index=False)
 
-def checkCondition(targets, text_limit, text_knowledge):
+def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName=''):
     if exit_flag:
         sys.exit(0)
+
+    error = False
 
     screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
 
@@ -109,11 +110,43 @@ def checkCondition(targets, text_limit, text_knowledge):
         else:
             dictCondition[name] = False
 
+    if errorName == 'AskPosition':
+        if dictCondition['AskPosition'] == False:
+            print("Error, Ask button not found")
+            pyautogui.hotkey('shift', 'esc')
+            pyautogui.hotkey('ctrl', 'a')
+            pyautogui.press('delete')
+            error = True
+
+    if errorName == 'CompanyKnowledgePosition':
+        if dictCondition['CompanyKnowledgePosition'] == False:
+            print("Error, Company Knowledge button not found")
+            pyautogui.hotkey('shift', 'esc')
+            pyautogui.write('/company', interval=0.1)
+            pyautogui.press('enter')
+            error = True
+
+    if errorName == 'CopyPosition':
+        if dictCondition['CopyPosition'] == False and dictCondition['VoicePosition'] == True:
+            print("Error, Copy button not found")
+            pyautogui.press('end')
+            sleep(0.2)
+            reachLimit = scanTextInRoi(text_limit)
+            if reachLimit == True:
+                pyautogui.hotkey('ctrl', 'shift', 'o')
+                sleep(1)
+                error = True
+            else:
+                error = False
+
+    if error == False:
+        return True
+
+    if iterasi >= 3:
+        return False
+
+    checkCondition(targets, text_limit, text_knowledge, iterasi+1)
     
-
-    print(dictCondition)
-    exit()
-
 def on_press(key):
     global exit_flag
     try:
@@ -154,21 +187,43 @@ if __name__ == "__main__":
         if exit_flag:
             break
 
+        print(f"Melakukan proses untuk baris ke {row['No']} | Code: {row['code']} | Name: {row['name']}")
+
         if row['status'] == "Success":
+            print(f"-Step {step} sudah selesai")
             continue
 
-        checkCondition(targets, 'limit', 'company knowledge')
-
-        for step in ['AskPosition','VoicePosition','CopyPosition']:
+        for step in ['CompanyKnowledgePosition', 'AskPosition','VoicePosition','CopyPosition']:
             if exit_flag:
                 sys.exit(0)
+
+            print(f"-Menjalankan step {step}")
 
             if step != 'VoicePosition': 
                 try:
                     screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
                     itemFound = findObject(targets[step], screenshot_gray=screenshot_gray)
-                    x, y = findCenter(itemFound, targets[step])
-                    pyautogui.moveTo(x, y, duration=0.1)
-                except:
-                    print("Error")
-                    state = "crash"
+                    if itemFound:
+                        x, y = findCenter(itemFound, targets[step])
+                        pyautogui.moveTo(x, y, duration=0.1)
+                        if step == 'AskPosition':
+                            handleAsk(row['name'])
+                        if step == 'CopyPosition':
+                            handleCopy(idx, row['code'])
+                    else:
+                        print(f"Error, {step} button not found")
+                        checkCondition(
+                            targets=targets,
+                            text_limit='limit',
+                            text_knowledge='company knowledge',
+                            errorName=step
+                        )
+                        break
+                except Exception as e:
+                    print(e)
+            
+            if step == 'VoicePosition':
+                try:
+                    handleVoice()
+                except Exception as e:
+                    print(e)
