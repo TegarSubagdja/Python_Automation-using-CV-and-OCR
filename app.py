@@ -1,17 +1,19 @@
+from numpy import var
+import pyperclip
 import sys
 import pyautogui
 import os
 import re
 import sys
 import cv2
-import gspread
 import pyautogui
 import pyperclip
+import var
 import numpy as np
 from mss import MSS
 import pandas as pd
 from pynput import keyboard
-from time import time, sleep
+from time import sleep
 from dotenv import load_dotenv
 from appOCR import scanTextInRoi
 
@@ -89,7 +91,7 @@ def handleCopy(idx, code):
         df.loc[idx, 'status'] = "Failed"
         df.to_excel('Data/data.xlsx', index=False)
 
-def checkCondition(targets, text_limit, text_knowledge, iteration=1):
+def checkCondition(targets, text_limit, text_knowledge, iteration=1, checkCompany=False):
     if exit_flag:
         sys.exit(0)
 
@@ -104,34 +106,43 @@ def checkCondition(targets, text_limit, text_knowledge, iteration=1):
         itemFound = findObject(img, screenshot_gray=screenshot_gray)
         if itemFound:
             x, y = findCenter(itemFound, img)
-            pyautogui.moveTo(x, y, duration=0.9)
         else:
             print(f"Error, position {name} not found...")
             error = True
             if name == "AskPosition":
+                print("fix ask position")
                 pyautogui.hotkey("shift", "esc")
                 pyautogui.hotkey("ctrl", "a")
                 pyautogui.press("delete")
-            if name == "VoicePosition":
-                pyautogui.hotkey('ctrl', 'shift', 'r')
             if name == "CopyPosition":
+                print("fix copy position")
                 if not scanTextInRoi(text_limit):
                     pyautogui.hotkey('ctrl', 'shift', 'r')
+                    sleep(waitingErrorTime)
                 else:
                     pyautogui.hotkey('ctrl', 'shift', 'o')
-    
-    company_knowledge = scanTextInRoi(text_knowledge)
-    if not company_knowledge:
-        pyautogui.press('/')
-        sleep(0.1)
-        pyautogui.write('company', interval=0.1)
-        sleep(0.2)
-        pyautogui.press('enter')
-        sleep(0.2)
+                    sleep(2)
+                    pyperclip.copy(var.fist_prompt)
+                    sleep(0.1)
+                    pyautogui.hotkey('ctrl', 'v')
+                    sleep(0.1)
+                    pyautogui.press('enter')
+                    sleep(45)
+
+    if checkCompany:
+        company_knowledge = scanTextInRoi(text_knowledge)
+        if not company_knowledge:
+            print("fix company knowledge")
+            pyautogui.press('/')
+            sleep(0.1)
+            pyautogui.write('company', interval=0.1)
+            sleep(0.2)
+            pyautogui.press('enter')
+            sleep(0.2)
 
     if error:
-        if iteration > 10:
-            return False
+        if iteration >= 5:
+            exit()
         else:
             return checkCondition(targets, text_limit, text_knowledge, iteration + 1)
 
@@ -179,32 +190,28 @@ if __name__ == "__main__":
         if row['status'] == "Success":
             continue
 
-        # Check condition to prompt
-        condition = checkCondition(targets=targets, text_limit="limit", text_knowledge="knowledge")
+        for step in ['AskPosition','VoicePosition','CopyPosition']:
+            if exit_flag:
+                sys.exit(0)
 
-        if not condition:
-            exit()
-        
-        # for step in ['AskPosition','VoicePosition','CopyPosition']:
-        #     if exit_flag:
-        #         sys.exit(0)
+            if step != 'VoicePosition': 
+                try:
+                    screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
+                    itemFound = findObject(targets[step], screenshot_gray=screenshot_gray)
+                    x, y = findCenter(itemFound, targets[step])
+                    pyautogui.moveTo(x, y, duration=0.1)
+                except:
+                    print("Error")
+                    state = "crash"
 
-        #     if step != 'VoicePosition': 
-        #         try:
-        #             screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
-        #             itemFound = findObject(targets[step], screenshot_gray=screenshot_gray)
-        #             x, y = findCenter(itemFound, targets[step])
-        #             pyautogui.moveTo(x, y, duration=0.1)
-        #         except:
-        #             print("Error")
-        #             state = "crash"
-        #             break
-
-        #     if step == 'AskPosition':
-        #         handleAsk(row['name'])
-        #     elif step == 'VoicePosition':
-        #         handleVoice()
-        #     elif step == 'CopyPosition':
-        #         handleCopy(idx, row['code'])
-
-        exit()
+            if state != "crash":
+                if step == 'AskPosition':
+                    handleAsk(row['name'])
+                elif step == 'VoicePosition':
+                    handleVoice()
+                elif step == 'CopyPosition':
+                    handleCopy(idx, row['code'])
+            else:
+                condition = checkCondition(targets=targets, text_limit="limit", text_knowledge="company knowledge", checkCompany=False)
+                if not condition:
+                    exit()
