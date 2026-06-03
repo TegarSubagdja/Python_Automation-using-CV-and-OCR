@@ -82,13 +82,13 @@ def handleCopy(idx, code):
         print("Code found in text")
         df.loc[idx, 'description'] = textOrigin
         df.loc[idx, 'status'] = "Success"
-        df.to_excel('Data/data.xlsx', index=False)
+        df.to_excel('Data/data2.xlsx', index=False, sheet_name='Sheet2')
         waitingErrorTime = 1
     else:
         print("Error, Code not found in text")
         df.loc[idx, 'description'] = "Code Not Found in Text"
         df.loc[idx, 'status'] = "Failed"
-        df.to_excel('Data/data.xlsx', index=False)
+        df.to_excel('Data/data2.xlsx', index=False, sheet_name='Sheet2')
 
 def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName=''):
     if exit_flag:
@@ -117,6 +117,9 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
             pyautogui.hotkey('ctrl', 'a')
             pyautogui.press('delete')
             error = True
+        else:
+            print("AskPosition button found")
+            error = False
 
     if errorName == 'CompanyKnowledgePosition':
         if dictCondition['CompanyKnowledgePosition'] == False:
@@ -125,6 +128,9 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
             pyautogui.write('/company', interval=0.1)
             pyautogui.press('enter')
             error = True
+        else:
+            print("CompanyKnowledgePosition button found")
+            error = False
 
     if errorName == 'CopyPosition':
         if dictCondition['CopyPosition'] == False and dictCondition['VoicePosition'] == True:
@@ -132,20 +138,30 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
             pyautogui.press('end')
             sleep(0.2)
             reachLimit = scanTextInRoi(text_limit)
-            if reachLimit == True:
+            if reachLimit:
                 pyautogui.hotkey('ctrl', 'shift', 'o')
                 sleep(1)
-                error = True
-            else:
                 error = False
-
+            else:
+                error = True
+        elif dictCondition['CopyPosition'] == True and dictCondition['VoicePosition'] == True:
+            print("CopyPosition button found")
+            error = False
+        
     if error == False:
         return True
 
     if iterasi >= 3:
+        print("Error, ", errorName, " cant be fixed")
+        print("Start a new chat")
+        pyautogui.hotkey('ctrl', 'l')
+        pyautogui.write('chatgpt.com', interval=0.1)
+        pyautogui.press('enter')
+        sleep(10)
+        error = True
         return False
 
-    checkCondition(targets, text_limit, text_knowledge, iterasi+1)
+    checkCondition(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName=errorName)
     
 def on_press(key):
     global exit_flag
@@ -167,7 +183,7 @@ if __name__ == "__main__":
     df = pd.read_excel(
         'Data/data2.xlsx',
         dtype={'name': str, 'code': str, 'status': str, 'description': str},
-        sheet_name='Sheet1'
+        sheet_name='Sheet2'
     )
 
     # Initialize targets
@@ -190,7 +206,7 @@ if __name__ == "__main__":
         print(f"Melakukan proses untuk baris ke {row['No']} | Code: {row['code']} | Name: {row['name']}")
 
         if row['status'] == "Success":
-            print(f"-Step {step} sudah selesai")
+            print(f"{row['code']} sudah selesai")
             continue
 
         for step in ['CompanyKnowledgePosition', 'AskPosition','VoicePosition','CopyPosition']:
@@ -211,7 +227,7 @@ if __name__ == "__main__":
                         if step == 'CopyPosition':
                             handleCopy(idx, row['code'])
                     else:
-                        print(f"Error, {step} button not found")
+                        print(f"Error, pada {step} button not found")
                         checkCondition(
                             targets=targets,
                             text_limit='limit',
