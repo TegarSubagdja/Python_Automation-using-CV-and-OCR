@@ -90,15 +90,16 @@ def handleCopy(idx, code):
         df.loc[idx, 'status'] = "Failed"
         df.to_excel('Data/data2.xlsx', index=False, sheet_name='Sheet2')
 
-def handleNewChat(targets, text_limit, text_knowledge, iterasi=1, errorName=''):
+def handleNewChat():
     if exit_flag:
         sys.exit(0)
 
     pyautogui.hotkey('ctrl', 'shift', 'o')
     sleep(3)
+    pyautogui.press('/')
+    pyautogui.write("company", interval=0.1)
+    pyautogui.press('enter')
     
-    checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName="CompanyKnowledgePosition")
-
     AskPosition = findObject(targets['AskPosition'])
     if AskPosition:
         x,y = findCenter(AskPosition, targets['AskPosition'])
@@ -166,7 +167,7 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
             if reachLimit:
                 pyautogui.hotkey('ctrl', 'shift', 'o')
                 sleep(1)
-                handleNewChat(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName="AskPosition")
+                handleNewChat()
                 error = False
             else:
                 error = True
@@ -180,7 +181,7 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
     if iterasi >= 3:
         print("Error, ", errorName, " cant be fixed")
         print("Start a new chat")
-        handleNewChat(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName="AskPosition")
+        handleNewChat()
         return False
 
     checkCondition(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName=errorName)
