@@ -1,4 +1,4 @@
-from pandas.tseries.holiday import before_nearest_workday
+from numpy import var
 import pyperclip
 import sys
 import pyautogui
@@ -90,6 +90,31 @@ def handleCopy(idx, code):
         df.loc[idx, 'status'] = "Failed"
         df.to_excel('Data/data2.xlsx', index=False, sheet_name='Sheet2')
 
+def handleNewChat(targets, text_limit, text_knowledge, iterasi=1, errorName=''):
+    if exit_flag:
+        sys.exit(0)
+
+    pyautogui.hotkey('ctrl', 'shift', 'o')
+    sleep(3)
+    
+    checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName="CompanyKnowledgePosition")
+
+    AskPosition = findObject(targets['AskPosition'])
+    if AskPosition:
+        x,y = findCenter(AskPosition, targets['AskPosition'])
+        pyautogui.moveTo(x, y, duration=0.1)
+        pyautogui.click()
+        pyperclip.copy(var.fist_prompt)
+        pyautogui.hotkey('ctrl', 'v')
+        pyautogui.press('enter')
+        handleVoice()
+    else:
+        print("Error, Ask button not found")
+        return False
+    
+    return True
+    
+
 def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName=''):
     if exit_flag:
         sys.exit(0)
@@ -141,6 +166,7 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
             if reachLimit:
                 pyautogui.hotkey('ctrl', 'shift', 'o')
                 sleep(1)
+                handleNewChat(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName="AskPosition")
                 error = False
             else:
                 error = True
@@ -154,11 +180,7 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
     if iterasi >= 3:
         print("Error, ", errorName, " cant be fixed")
         print("Start a new chat")
-        pyautogui.hotkey('ctrl', 'l')
-        pyautogui.write('chatgpt.com', interval=0.1)
-        pyautogui.press('enter')
-        sleep(10)
-        error = True
+        handleNewChat(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName="AskPosition")
         return False
 
     checkCondition(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName=errorName)
