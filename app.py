@@ -247,6 +247,12 @@ if __name__ == "__main__":
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
+    # Setup first run
+    x, y = scanTextInRoi("ask anything")
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.click()
+    handleNewChat()
+
     # Main loop
     for idx, row in df.iterrows():
         if exit_flag:
@@ -256,7 +262,7 @@ if __name__ == "__main__":
             f"Melakukan proses untuk baris ke {row['No']} | Code: {row['code']} | Name: {row['name']}"
         )
 
-        if row["status"] == "Success" or row["status"] != "":
+        if row["status"] == "Success" or row["status"] != "Failed":
             continue
 
         for step in [
