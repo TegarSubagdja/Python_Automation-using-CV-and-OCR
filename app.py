@@ -20,26 +20,29 @@ from appOCR import scanTextInRoi
 load_dotenv()
 
 # Initialize variables
-state = os.getenv('state')
+state = os.getenv("state")
 exit_flag = os.getenv("exit_flag", "False").lower() == "true"
-waitingErrorTime = int(os.getenv('waitingErrorTime'))
-timeout = int(os.getenv('timeout'))
+waitingErrorTime = int(os.getenv("waitingErrorTime"))
+timeout = int(os.getenv("timeout"))
+
 
 def findObject(target, threshold=0.8, screenshot_gray=None):
     if exit_flag:
         sys.exit(0)
-        
+
     if screenshot_gray is None:
         screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
-    
+
     res = cv2.matchTemplate(screenshot_gray, target, cv2.TM_CCOEFF_NORMED)
     locations = np.where(res >= threshold)
     points = list(zip(*locations[::-1]))
     return max(points, key=lambda p: p[1]) if points else None
 
+
 def findCenter(point, target):
     h, w = target.shape
     return point[0] + w // 2, point[1] + h // 2
+
 
 def handleAsk(name):
     if exit_flag:
@@ -48,19 +51,20 @@ def handleAsk(name):
     sleep(0.2)
     pyautogui.write(name, interval=0.01)
     sleep(0.2)
-    pyautogui.press('enter')
+    pyautogui.press("enter")
     sleep(3)
+
 
 def handleVoice():
     if exit_flag:
         sys.exit(0)
     waitingTime = 0
     while not exit_flag:
-        found = findObject(targets['VoicePosition'])
+        found = findObject(targets["VoicePosition"])
         if found:
-            pyautogui.moveTo(found[0], found[1] - 30, duration=0.1)
+            pyautogui.moveTo(found[0], found[1] - 100, duration=0.1)
             pyautogui.click()
-            pyautogui.press('end')
+            pyautogui.press("end")
             sleep(1)
             break
         waitingTime += 1
@@ -68,55 +72,57 @@ def handleVoice():
             print("Error, Voice button not found")
             return False
         sleep(1)
-        
+
     return True
+
 
 def handleCopy(idx, code):
     if exit_flag:
         sys.exit(0)
     pyautogui.click()
-    textOrigin = pyperclip.paste().replace('\r\n', '\n')
+    textOrigin = pyperclip.paste().replace("\r\n", "\n")
     textCopied = re.split(r"[ ,:/\n()]+|\[.*?\]", textOrigin)
     textCopied = [x for x in textCopied if x]
     if code in textCopied:
         print("Code found in text")
-        df.loc[idx, 'description'] = textOrigin
-        df.loc[idx, 'status'] = "Success"
-        df.to_excel('Data/data2.xlsx', index=False, sheet_name='Sheet2')
+        df.loc[idx, "description"] = textOrigin
+        df.loc[idx, "status"] = "Success"
+        df.to_excel("Data/data2.xlsx", index=False, sheet_name="Sheet2")
         waitingErrorTime = 1
     else:
         print("Error, Code not found in text")
-        df.loc[idx, 'description'] = "Code Not Found in Text"
-        df.loc[idx, 'status'] = "Failed"
-        df.to_excel('Data/data2.xlsx', index=False, sheet_name='Sheet2')
+        df.loc[idx, "description"] = "Code Not Found in Text"
+        df.loc[idx, "status"] = "Failed"
+        df.to_excel("Data/data2.xlsx", index=False, sheet_name="Sheet2")
+
 
 def handleNewChat():
     if exit_flag:
         sys.exit(0)
 
-    pyautogui.hotkey('ctrl', 'shift', 'o')
+    pyautogui.hotkey("ctrl", "shift", "o")
     sleep(3)
-    pyautogui.press('/')
+    pyautogui.press("/")
     pyautogui.write("company", interval=0.1)
-    pyautogui.press('enter')
-    
-    AskPosition = findObject(targets['AskPosition'])
+    pyautogui.press("enter")
+
+    AskPosition = findObject(targets["AskPosition"])
     if AskPosition:
-        x,y = findCenter(AskPosition, targets['AskPosition'])
+        x, y = findCenter(AskPosition, targets["AskPosition"])
         pyautogui.moveTo(x, y, duration=0.1)
         pyautogui.click()
         pyperclip.copy(var.fist_prompt)
-        pyautogui.hotkey('ctrl', 'v')
-        pyautogui.press('enter')
+        pyautogui.hotkey("ctrl", "v")
+        pyautogui.press("enter")
         handleVoice()
     else:
         print("Error, Ask button not found")
         return False
-    
-    return True
-    
 
-def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName=''):
+    return True
+
+
+def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName=""):
     if exit_flag:
         sys.exit(0)
 
@@ -136,45 +142,51 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
         else:
             dictCondition[name] = False
 
-    if errorName == 'AskPosition':
-        if dictCondition['AskPosition'] == False:
+    if errorName == "AskPosition":
+        if dictCondition["AskPosition"] == False:
             print("Error, Ask button not found")
-            pyautogui.hotkey('shift', 'esc')
-            pyautogui.hotkey('ctrl', 'a')
-            pyautogui.press('delete')
+            pyautogui.hotkey("shift", "esc")
+            pyautogui.hotkey("ctrl", "a")
+            pyautogui.press("delete")
             error = True
         else:
             print("AskPosition button found")
             error = False
 
-    if errorName == 'CompanyKnowledgePosition':
-        if dictCondition['CompanyKnowledgePosition'] == False:
+    if errorName == "CompanyKnowledgePosition":
+        if dictCondition["CompanyKnowledgePosition"] == False:
             print("Error, Company Knowledge button not found")
-            pyautogui.hotkey('shift', 'esc')
-            pyautogui.write('/company', interval=0.1)
-            pyautogui.press('enter')
+            pyautogui.hotkey("shift", "esc")
+            pyautogui.write("/company", interval=0.1)
+            pyautogui.press("enter")
             error = True
         else:
             print("CompanyKnowledgePosition button found")
             error = False
 
-    if errorName == 'CopyPosition':
-        if dictCondition['CopyPosition'] == False and dictCondition['VoicePosition'] == True:
+    if errorName == "CopyPosition":
+        if (
+            dictCondition["CopyPosition"] == False
+            and dictCondition["VoicePosition"] == True
+        ):
             print("Error, Copy button not found")
-            pyautogui.press('end')
+            pyautogui.press("end")
             sleep(0.2)
             reachLimit = scanTextInRoi(text_limit)
             if reachLimit:
-                pyautogui.hotkey('ctrl', 'shift', 'o')
+                pyautogui.hotkey("ctrl", "shift", "o")
                 sleep(1)
                 handleNewChat()
                 error = False
             else:
                 error = True
-        elif dictCondition['CopyPosition'] == True and dictCondition['VoicePosition'] == True:
+        elif (
+            dictCondition["CopyPosition"] == True
+            and dictCondition["VoicePosition"] == True
+        ):
             print("CopyPosition button found")
             error = False
-        
+
     if error == False:
         return True
 
@@ -184,37 +196,51 @@ def checkCondition(targets, text_limit, text_knowledge, iterasi=1, errorName='')
         handleNewChat()
         return False
 
-    checkCondition(targets=targets, text_limit=text_limit, text_knowledge=text_knowledge, iterasi=iterasi+1, errorName=errorName)
-    
+    checkCondition(
+        targets=targets,
+        text_limit=text_limit,
+        text_knowledge=text_knowledge,
+        iterasi=iterasi + 1,
+        errorName=errorName,
+    )
+
+
 def on_press(key):
     global exit_flag
     try:
-        if key.char == 'q':
+        if key.char == "q":
             print("\nQ pressed. Exiting...")
             exit_flag = True
             sys.exit(0)
     except AttributeError:
         pass
 
+
 if __name__ == "__main__":
-    
+
     # Initialize screen shotter
     sct = MSS()
     monitor = sct.monitors[1]
 
     # Initialize data
     df = pd.read_excel(
-        'Data/data2.xlsx',
-        dtype={'name': str, 'code': str, 'status': str, 'description': str},
-        sheet_name='Sheet2'
+        "Data/data2.xlsx",
+        dtype={"name": str, "code": str, "status": str, "description": str},
+        sheet_name="Sheet2",
     )
 
     # Initialize targets
     targets = {
-        'AskPosition': cv2.imread('TargetObject/AskPosition.png', cv2.IMREAD_GRAYSCALE),
-        'VoicePosition': cv2.imread('TargetObject/VoicePosition.png', cv2.IMREAD_GRAYSCALE),
-        'CopyPosition': cv2.imread('TargetObject/CopyPosition.png', cv2.IMREAD_GRAYSCALE),
-        'CompanyKnowledgePosition': cv2.imread('TargetObject/CompanyKnowledgePosition.png', cv2.IMREAD_GRAYSCALE),
+        "AskPosition": cv2.imread("TargetObject/AskPosition.png", cv2.IMREAD_GRAYSCALE),
+        "VoicePosition": cv2.imread(
+            "TargetObject/VoicePosition.png", cv2.IMREAD_GRAYSCALE
+        ),
+        "CopyPosition": cv2.imread(
+            "TargetObject/CopyPosition.png", cv2.IMREAD_GRAYSCALE
+        ),
+        "CompanyKnowledgePosition": cv2.imread(
+            "TargetObject/CompanyKnowledgePosition.png", cv2.IMREAD_GRAYSCALE
+        ),
     }
 
     # Initialize keyboard listener
@@ -226,42 +252,52 @@ if __name__ == "__main__":
         if exit_flag:
             break
 
-        print(f"Melakukan proses untuk baris ke {row['No']} | Code: {row['code']} | Name: {row['name']}")
+        print(
+            f"Melakukan proses untuk baris ke {row['No']} | Code: {row['code']} | Name: {row['name']}"
+        )
 
-        if row['status'] == "Success":
-            print(f"{row['code']} sudah selesai")
+        if row["status"] == "Success" or row["status"] != "":
             continue
 
-        for step in ['CompanyKnowledgePosition', 'AskPosition','VoicePosition','CopyPosition']:
+        for step in [
+            "CompanyKnowledgePosition",
+            "AskPosition",
+            "VoicePosition",
+            "CopyPosition",
+        ]:
             if exit_flag:
                 sys.exit(0)
 
             print(f"-Menjalankan step {step}")
 
-            if step != 'VoicePosition': 
+            if step != "VoicePosition":
                 try:
-                    screenshot_gray = cv2.cvtColor(np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY)
-                    itemFound = findObject(targets[step], screenshot_gray=screenshot_gray)
+                    screenshot_gray = cv2.cvtColor(
+                        np.array(sct.grab(monitor)), cv2.COLOR_BGRA2GRAY
+                    )
+                    itemFound = findObject(
+                        targets[step], screenshot_gray=screenshot_gray
+                    )
                     if itemFound:
                         x, y = findCenter(itemFound, targets[step])
                         pyautogui.moveTo(x, y, duration=0.1)
-                        if step == 'AskPosition':
-                            handleAsk(row['name'])
-                        if step == 'CopyPosition':
-                            handleCopy(idx, row['code'])
+                        if step == "AskPosition":
+                            handleAsk(row["name"])
+                        if step == "CopyPosition":
+                            handleCopy(idx, row["code"])
                     else:
                         print(f"Error, pada {step} button not found")
                         checkCondition(
                             targets=targets,
-                            text_limit='limit',
-                            text_knowledge='company knowledge',
-                            errorName=step
+                            text_limit="limit",
+                            text_knowledge="company knowledge",
+                            errorName=step,
                         )
                         break
                 except Exception as e:
                     print(e)
-            
-            if step == 'VoicePosition':
+
+            if step == "VoicePosition":
                 try:
                     handleVoice()
                 except Exception as e:
