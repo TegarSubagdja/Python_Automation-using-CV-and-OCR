@@ -434,7 +434,7 @@ mkdir "C:\ChromeAutomation\User Data"
 xcopy "C:\Users\kingt\AppData\Local\Google\Chrome\User Data\Profile 1" "C:\ChromeAutomation\User Data\Profile 1" /E /H /C /I /Y
 ```
 ```bash
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\ChromeAutomation\User Data" --profile-directory="Profile 1"
+chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeAutomation\User Data" --profile-directory="Profile 1"
 ```
 
 # Virtual Environment & Offline Dependencies

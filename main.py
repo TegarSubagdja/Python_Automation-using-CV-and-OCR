@@ -14,7 +14,7 @@ driver = webdriver.Chrome(options=options)
 for handle in driver.window_handles:
     driver.switch_to.window(handle)
 
-    if "chatgpt.com" in driver.current_url.lower():
+    if "https://chatgpt.com/" in driver.current_url.lower():
         break
 
 print(driver.title)
@@ -23,37 +23,34 @@ print(driver.current_url)
 time.sleep(3)
 
 # cari textarea prompt ChatGPT
-prompt = driver.find_elements(
+prompt = driver.find_element(
     By.ID,
     'prompt-textarea'
 )
 
-voiceChat = driver.find_elements(
-    By.CSS_SELECTOR,
-    'button[aria-label="Start Voice"]'
-)
+print(f"Text pada prompt saat ini adalah \"{prompt.text}\"")
+time.sleep(1)
 
 copy_btn = driver.find_elements(
     By.CSS_SELECTOR,
-    'button[aria-label="Copy"]'
+    'button[aria-label="Copy response"]'
 )
 
-copy_btn[-1].click()
-text = pyperclip.paste()
-print(f"{text}")
-
-exit()
+if len(copy_btn) > 0:
+    # copy_btn[-1].click()
+    driver.execute_script("arguments[0].click();", copy_btn[-1])
+    time.sleep(1)
+    text = pyperclip.paste()
+    print(f"{text}")
 
 for i in range(2):
-    print(f"{prompt[-1].text}")
-    # prompt[-1].send_keys("Halo ")
-    # time.sleep(1)
+    prompt.send_keys("Halo ")
+    print(f"Text pada prompt saat ini adalah \"{prompt.text}\"")
+    time.sleep(1)
     # Ctrl+A
-    prompt[-1].send_keys(Keys.CONTROL, "a")
-    time.sleep(1)
+    prompt.send_keys(Keys.CONTROL, "a")
     # Hapus teks yang terseleksi
-    prompt[-1].send_keys(Keys.DELETE)
-    time.sleep(1)
+    prompt.send_keys(Keys.DELETE)
 
 for i in range(2):
     voiceChat = driver.find_elements(
@@ -62,6 +59,6 @@ for i in range(2):
     )
 
     if voiceChat:
-        print(f"Tombol ditemukan")
+        print(f"Button Voice Chat ditemukan!")
 
-    time.sleep(3)
+    time.sleep(1)
