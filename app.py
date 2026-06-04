@@ -60,9 +60,11 @@ def handleVoice():
         sys.exit(0)
     waitingTime = 0
     while not exit_flag:
-        found = findObject(targets["VoicePosition"])
-        if found:
-            pyautogui.moveTo(found[0], found[1] - 100, duration=0.1)
+        foundVoice = findObject(targets["VoicePosition"])
+        foundArrow = findObject(target=["ArrowVoicePosition"])
+        coordinate = foundVoice or foundArrow
+        if coordinate:
+            pyautogui.moveTo(coordinate[0], coordinate[1] - 100, duration=0.1)
             pyautogui.click()
             pyautogui.press("end")
             sleep(1)
@@ -89,11 +91,13 @@ def handleCopy(idx, code):
         df.loc[idx, "status"] = "Success"
         df.to_excel("Data/data2.xlsx", index=False, sheet_name="Sheet2")
         waitingErrorTime = 1
+        return True
     else:
         print("Error, Code not found in text")
         df.loc[idx, "description"] = "Code Not Found in Text"
         df.loc[idx, "status"] = "Failed"
         df.to_excel("Data/data2.xlsx", index=False, sheet_name="Sheet2")
+        return False
 
 
 def handleNewChat():
@@ -253,6 +257,9 @@ if __name__ == "__main__":
     pyautogui.click()
     handleNewChat()
 
+    # Initialize error counter
+    errorCounter = 1
+
     # Main loop
     for idx, row in df.iterrows():
         if exit_flag:
@@ -290,7 +297,8 @@ if __name__ == "__main__":
                         if step == "AskPosition":
                             handleAsk(row["name"])
                         if step == "CopyPosition":
-                            handleCopy(idx, row["code"])
+                            if handleCopy(idx, row["code"]) == True:
+                                errorCounter = 1
                     else:
                         print(f"Error, pada {step} button not found")
                         checkCondition(
@@ -299,12 +307,23 @@ if __name__ == "__main__":
                             text_knowledge="company knowledge",
                             errorName=step,
                         )
+                        errorCounter += 1
+                        if errorCounter > 5:
+                            sys.exit()
                         break
                 except Exception as e:
                     print(e)
+                    errorCounter += 1
+                    if errorCounter > 5:
+                        sys.exit()
+                    break
 
             if step == "VoicePosition":
                 try:
                     handleVoice()
                 except Exception as e:
                     print(e)
+                    errorCounter += 1
+                    if errorCounter > 5:
+                        sys.exit()
+                    break

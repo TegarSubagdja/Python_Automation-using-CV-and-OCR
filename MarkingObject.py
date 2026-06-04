@@ -194,8 +194,9 @@ if __name__ == "__main__":
     templates = {
         "1": "AskPosition",
         "2": "VoicePosition",
-        "3": "CopyPosition",
-        "4": "CompanyKnowledgePosition"
+        "3": "ArrowVoicePosition",
+        "4": "CopyPosition",
+        "5": "CompanyKnowledgePosition"
     }
 
     listener = keyboard.Listener(
