@@ -1,4 +1,3 @@
-from pyautogui import sleep
 import re
 import time
 import pyperclip
@@ -8,12 +7,6 @@ from selenium import webdriver
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from appOCR import scanTextInRoi
-
-options = Options()
-options.debugger_address = "127.0.0.1:9222"
-
-driver = webdriver.Chrome(options=options)
 
 def findTab(driver, url):
     if driver:
@@ -199,6 +192,30 @@ def addCompanyKnowledge(driver):
         print("Driver tidak ditemukan!")
         return False
 
+def isLimit(driver):
+    if driver:
+        try:
+            keywords = [
+                "reach the maximum",
+                "you've reached the maximum",
+                "usage limit",
+            ]
+            page = driver.find_element(By.TAG_NAME, "body").text.lower()[-1000:]
+            
+            for keyword in keywords:
+                if keyword in page:
+                    print("Limit reached!")
+                    return True
+                else:
+                    print("Limit not reached!")
+                    return False
+        except Exception as e:
+            print(f"Error, check limit gagal! {e}")
+            return False
+    else:
+        print("Driver tidak ditemukan!")
+        return False
+
 def on_press(key):
     try:
         if key.char == "q":
@@ -209,12 +226,22 @@ def on_press(key):
     except Exception as e:
         print(e)
 
-listener = keyboard.Listener(on_press=on_press)
-listener.start()
+options = Options()
+options.debugger_address = "127.0.0.1:9222"
+
+driver = webdriver.Chrome(options=options)
 
 driver = findTab(driver, "chatgpt.com")
 
+page = driver.find_element(By.TAG_NAME, "body").text.lower()
+page = page[-1000:]
+print(page)
+exit()
+
 data = pd.read_excel("Data/data2.xlsx", sheet_name="Sheet2", dtype=str)
+
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
 
 for index, row in data.iterrows():
     time.sleep(1)
@@ -237,7 +264,7 @@ for index, row in data.iterrows():
                 else:
                     print("Error, copy response gagal!")
             else:
-                reach_limit = scanTextInRoi(teks_target="reached the maximum")
+                reach_limit = isLimit(driver)
                 if reach_limit:
                     new_chat = makeNewChat(driver)
                     if not new_chat:
