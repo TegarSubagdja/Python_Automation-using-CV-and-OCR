@@ -1,64 +1,268 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
+from pyautogui import sleep
+import re
 import time
 import pyperclip
+import pandas as pd
+from pynput import keyboard
+from selenium import webdriver
+from selenium.webdriver import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from appOCR import scanTextInRoi
 
 options = Options()
 options.debugger_address = "127.0.0.1:9222"
 
 driver = webdriver.Chrome(options=options)
 
-# cari tab ChatGPT yang sudah terbuka
-for handle in driver.window_handles:
-    driver.switch_to.window(handle)
+def findTab(driver, url):
+    if driver:
+        for handle in driver.window_handles:
+            driver.switch_to.window(handle)
 
-    if "https://chatgpt.com/" in driver.current_url.lower():
-        break
+            if url in driver.current_url.lower():
+                break
+    else:
+        print("Driver tidak ditemukan!")
+        return None
 
-print(driver.title)
-print(driver.current_url)
+    if driver:
+        print(driver.title)
+        print(driver.current_url)
+        return driver
+    return None
 
-time.sleep(3)
+def findCompanyKnowledgeButton(driver):
+    if driver:
+        try:
+            company_profile = driver.find_element(
+                By.CSS_SELECTOR,
+                'button[aria-label="Company Knowledge, click to remove"]'
+            )
+        except Exception as e:
+            print(f"Company Knowledge Kemungkinan Tidak ditemukan")
+            return None
 
-# cari textarea prompt ChatGPT
-prompt = driver.find_element(
-    By.ID,
-    'prompt-textarea'
-)
+        if company_profile:
+            print("Company Knowledge ditemukan!")
+            return company_profile
+        else:
+            print("Company Profile tidak ditemukan!")
+            return None
+    else:
+        print("Driver tidak ditemukan!")
+        return None
+    return None
 
-print(f"Text pada prompt saat ini adalah \"{prompt.text}\"")
-time.sleep(1)
+def findTextArea(driver):
+    if driver:
+        try:
+            prompt = driver.find_element(
+                By.ID,
+                'prompt-textarea'
+            )
+        except Exception as e:
+            print(f"Text Area Kemungkinan Tidak ditemukan")
+            return None
 
-copy_btn = driver.find_elements(
-    By.CSS_SELECTOR,
-    'button[aria-label="Copy response"]'
-)
+        if prompt:
+            print("Text Area ditemukan!")
+            return prompt
+    else:
+        print("Driver tidak ditemukan!")
+        return None
+    return None
 
-if len(copy_btn) > 0:
-    # copy_btn[-1].click()
-    driver.execute_script("arguments[0].click();", copy_btn[-1])
+def CopyResponse(driver):
+    if driver:
+        try:
+            copy_btn = driver.find_elements(
+                By.CSS_SELECTOR,
+                'button[aria-label="Copy response"]'
+            )
+        except Exception as e:
+            print(f"Copy button Kemungkinan Tidak ditemukan")
+            return None
+
+        if len(copy_btn) > 0:
+            driver.execute_script("arguments[0].click();", copy_btn[-1])
+            time.sleep(1)
+            text = pyperclip.paste()
+            print("Response berhasil dicopy!")
+            return text
+        else:
+            print("Copy button tidak ditemukan!")
+            return None
+    else:
+        print("Driver tidak ditemukan!")
+        return None
+    return None
+
+def findVoiceChatButton(driver):
+    if driver:
+        try:
+            voiceChat = driver.find_element(
+                By.CSS_SELECTOR,
+                'button[aria-label="Start Voice"]'
+            )
+        except Exception as e:
+            return None
+
+        if voiceChat:
+            print("Voice Chat ditemukan!")
+            return voiceChat
+        else:
+            print("Voice Chat tidak ditemukan!")
+            return None
+    else:
+        print("Driver tidak ditemukan!")
+        return None
+
+def WaitVoiceChat(driver, timeout):
+    timeout = timeout * 60
+    start_time = time.time()
+    print(f"Waiting for Voice Chat for {timeout} seconds...")
+    while time.time() - start_time < timeout:
+        voice_chat = findVoiceChatButton(driver)
+        if voice_chat:
+            voice_chat.send_keys(Keys.END)
+            time.sleep(1)
+            return True
+        else:
+            time.sleep(1)
+    return False
+
+def makeNewChat(driver):
+    if driver:
+        try:
+            body = driver.find_element(By.TAG_NAME, "body")
+            body.send_keys(Keys.CONTROL + Keys.SHIFT + "o")
+            print("New Chat berhasil dibuat!")
+            time.sleep(2)
+            return True
+        except Exception as e:
+            print(f"New Chat Gagal Dibuat")
+            return False
+    else:
+        print("Driver tidak ditemukan!")
+        return False
+
+def refreshChat(driver):
+    if driver:
+        try:
+            body = driver.find_element(By.TAG_NAME, "body")
+            body.send_keys(Keys.CONTROL + "r")
+            print("Refresh berhasil!")
+            time.sleep(2)
+            return True
+        except Exception as e:
+            print(f"Refresh Gagal Dibuat")
+            return False
+    else:
+        print("Driver tidak ditemukan!")
+        return False
+
+def saveData(data, index, code, textResponse):
+    textOrigin = textResponse.replace("\r\n", "\n")
+    textCopied = re.split(r"[ ,:/\n()]+|\[.*?\]", textOrigin)
+    textCopied = [x for x in textCopied if x]
+    if code in textCopied:
+        print("Code found in text")
+        data.loc[index, "description"] = textOrigin
+        data.loc[index, "status"] = "Success"
+        data.to_excel("Data/data2.xlsx", index=False, sheet_name="Sheet2")
+        return True
+    else:
+        print("Error, Code not found in text")
+        data.loc[index, "description"] = "Code Not Found in Text"
+        data.loc[index, "status"] = "Failed"
+        data.to_excel("Data/data2.xlsx", index=False, sheet_name="Sheet2")
+        return False
+
+def addCompanyKnowledge(driver):
+    if driver:
+        try:
+            text_area = findTextArea(driver)
+            if text_area:
+                text_area.send_keys("/company")
+                text_area.send_keys(Keys.ENTER)
+                print("Company Knowledge berhasil ditambahkan!")
+                time.sleep(2)
+                return True
+            else:
+                print("Error, textarea tidak ditemukan untuk menambahkan company knowledge!")
+                return False
+        except Exception as e:
+            print(f"Error, add company knowledge gagal! {e}")
+            return False
+    else:
+        print("Driver tidak ditemukan!")
+        return False
+
+def on_press(key):
+    try:
+        if key.char == "q":
+            print("Q pressed. Exiting...")
+            exit()
+    except AttributeError:
+        pass
+    except Exception as e:
+        print(e)
+
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
+driver = findTab(driver, "chatgpt.com")
+
+data = pd.read_excel("Data/data2.xlsx", sheet_name="Sheet2", dtype=str)
+
+for index, row in data.iterrows():
     time.sleep(1)
-    text = pyperclip.paste()
-    print(f"{text}")
+    company_knowledge = True
+    if company_knowledge:
+        prompt = findTextArea(driver)
+        voice_chat = findVoiceChatButton(driver)
+        if prompt and voice_chat:
+            prompt.send_keys(row["name"])
+            prompt.send_keys(Keys.ENTER)
+            time.sleep(1)
+            if WaitVoiceChat(driver, 2):
+                copy_response = CopyResponse(driver)
+                if copy_response:
+                    saveData = saveData(data=data, index=index, code=row["code"], textResponse=copy_response)
+                    if saveData:
+                        print("Data berhasil disimpan!")
+                    else:
+                        print("Data gagal disimpan!")
+                else:
+                    print("Error, copy response gagal!")
+            else:
+                reach_limit = scanTextInRoi(teks_target="reached the maximum")
+                if reach_limit:
+                    new_chat = makeNewChat(driver)
+                    if not new_chat:
+                        print("Keluar program karena new chat gagal dibuat!")
+                        exit()
+                else:
+                    refresh = refreshChat(driver)
+                    if not refresh:
+                        print("Keluar program karena refresh gagal!")
+                        exit()
+        else:
+            print("Error, prompt atau voice chat tidak ditemukan!")
+            refresh = refreshChat(driver)
+            if not refresh:
+                print("Keluar program karena refresh gagal!")
+                exit()
+            continue
+    else:
+        print("Error, company knowledge tidak ditemukan!")
+        add_company_knowledge = addCompanyKnowledge(driver)
+        if not add_company_knowledge:
+            print("Keluar program karena add company knowledge gagal!")
+            exit()
+        continue
+        
+listener.stop()
 
-for i in range(2):
-    prompt.send_keys("Halo ")
-    print(f"Text pada prompt saat ini adalah \"{prompt.text}\"")
-    time.sleep(1)
-    # Ctrl+A
-    prompt.send_keys(Keys.CONTROL, "a")
-    # Hapus teks yang terseleksi
-    prompt.send_keys(Keys.DELETE)
-
-for i in range(2):
-    voiceChat = driver.find_elements(
-        By.CSS_SELECTOR,
-        'button[aria-label="Start Voice"]'
-    )
-
-    if voiceChat:
-        print(f"Button Voice Chat ditemukan!")
-
-    time.sleep(1)
+# chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeAutomation\User Data" --profile-directory="Profile 1"
