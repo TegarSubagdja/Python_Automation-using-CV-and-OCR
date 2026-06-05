@@ -198,7 +198,7 @@ def isLimit(driver):
             keywords = [
                 "reach the maximum",
                 "you've reached the maximum",
-                "usage limit",
+                "starting a new chat",
             ]
             page = driver.find_element(By.TAG_NAME, "body").text.lower()[-1000:]
             
